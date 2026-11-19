@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14213D">
+  <title>Vega League</title>
+  <link rel="stylesheet" href="home.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">VEGA LEAGUE</div>
+    <button id="logout" class="ghost" type="button">Abmelden</button>
+  </header>
+
+  <main class="content">
+    <section class="panel active" data-panel="dashboard" aria-label="Dashboard">
+      <h1 class="page-title">Dashboard</h1>
+
+      <div class="card">
+        <p id="greeting" class="lead">Willkommen.</p>
+      </div>
+
+      <!-- Ozean (wenn schon festgelegt) -->
+      <div id="district" class="card" hidden>
+        <p class="kicker">Dein Ozean</p>
+        <h2 id="district-name" class="card-title"></h2>
+        <p id="district-desc" class="body-text"></p>
+      </div>
+
+      <!-- Willkommen (solange noch kein Ozean feststeht) -->
+      <div id="welcome" class="card" hidden>
+        <h2 id="welcome-title" class="card-title"></h2>
+        <div id="welcome-text" class="body-text"></div>
+        <button id="start-quiz" class="primary" type="button">Quiz starten</button>
+      </div>
+
+      <!-- Quiz -->
+      <div id="quiz" class="card" hidden>
+        <div class="progress"><span id="progress-bar"></span></div>
+        <p class="kicker" id="quiz-step"></p>
+        <h2 id="quiz-title" class="card-title"></h2>
+        <p id="quiz-text" class="body-text"></p>
+        <div id="quiz-answers" class="answers"></div>
+        <p id="quiz-error" class="error" hidden></p>
+      </div>
+    </section>
+
+    <section class="panel" data-panel="verein" aria-label="Verein">
+      <h1 class="page-title">Verein</h1>
+      <div class="card"><p class="body-text">Dieser Bereich kommt bald.</p></div>
+    </section>
+
+    <section class="panel" data-panel="nachrichten" aria-label="Nachrichten">
+      <h1 class="page-title">Nachrichten</h1>
+      <div class="card"><p class="body-text">Dieser Bereich kommt bald.</p></div>
+    </section>
+
+    <section class="panel" data-panel="karriere" aria-label="Karriere">
+      <h1 class="page-title">Karriere</h1>
+      <div class="card"><p class="body-text">Dieser Bereich kommt bald.</p></div>
+    </section>
+
+    <section class="panel" data-panel="persoenlich" aria-label="Persönlich">
+      <h1 class="page-title">Persönlich</h1>
+
+      <nav class="subtabs" aria-label="Persönlich Unterbereiche">
+        <button class="subtab active" data-subtab="vorname" type="button" id="subtab-name">Vorname</button>
+        <button class="subtab" data-subtab="info" type="button">Info</button>
+        <button class="subtab" data-subtab="einstellungen" type="button">Einstellungen</button>
+      </nav>
+
+      <!-- Unter-Tab mit dem Vornamen: Spider Chart (DISG) -->
+      <div class="subpanel active" data-subpanel="vorname">
+        <div class="card">
+          <p class="kicker">Dein DISG-Profil</p>
+          <h2 class="card-title">Spider Chart</h2>
+          <p id="disg-empty" class="body-text" hidden>Beantworte zuerst das Quiz, dann siehst du hier dein Profil.</p>
+          <div id="disg-chart" class="chart" hidden></div>
+          <div id="disg-result" class="disg-result" hidden></div>
+        </div>
+      </div>
+
+      <!-- Unter-Tab Info -->
+      <div class="subpanel" data-subpanel="info">
+        <div class="card">
+          <h2 class="card-title">Info</h2>
+          <form id="profile-form" autocomplete="off" novalidate>
+            <label class="field">
+              <span>Vollständiger Name</span>
+              <input name="name" type="text" maxlength="80" required>
+              <small class="error" data-error="name" hidden></small>
+            </label>
+            <label class="field">
+              <span>Geburtsdatum (TT.MM.JJJJ)</span>
+              <input name="birthdate" type="text" inputmode="numeric" maxlength="10" required>
+              <small class="error" data-error="birthdate" hidden></small>
+            </label>
+            <label class="field">
+              <span>Telefonnummer</span>
+              <input name="phone" type="tel" inputmode="tel" maxlength="24" required>
+              <small class="error" data-error="phone" hidden></small>
+            </label>
+            <label class="field">
+              <span>E-Mail-Adresse</span>
+              <input name="email" type="email" inputmode="email" maxlength="254" required>
+              <small class="error" data-error="email" hidden></small>
+            </label>
+            <button class="primary" type="submit">Speichern</button>
+            <p id="profile-message" class="status" hidden></p>
+          </form>
+        </div>
+      </div>
+
+      <!-- Unter-Tab Einstellungen -->
+      <div class="subpanel" data-subpanel="einstellungen">
+        <div class="card">
+          <h2 class="card-title">Einstellungen</h2>
+          <p class="body-text">Dieser Bereich kommt bald.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabbar" aria-label="Hauptmenü">
+    <button class="tab active" data-tab="dashboard" type="button">Dashboard</button>
+    <button class="tab" data-tab="verein" type="button">Verein</button>
+    <button class="tab" data-tab="nachrichten" type="button">Nachrichten</button>
+    <button class="tab" data-tab="karriere" type="button">Karriere</button>
+    <button class="tab" data-tab="persoenlich" type="button">Persönlich</button>
+  </nav>
+
+  <script src="js/home.js"></script>
+</body>
+</html>

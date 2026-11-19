@@ -1,0 +1,210 @@
+:root {
+  --bg: #000000;
+  --fg: #33ff66;
+  --dim: #1f9e44;
+  --err: #ff5c5c;
+  --glow: 0 0 6px rgba(51, 255, 102, 0.45);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+.term {
+  height: 100vh;
+  height: 100dvh;
+  padding: 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  text-shadow: var(--glow);
+  display: flex;
+  flex-direction: column;
+}
+
+.log {
+  flex: 1 0 auto;
+  transition: opacity 0.25s;
+}
+.log.fading { opacity: 0; }
+
+.stage {
+  flex: 0 0 auto;
+  margin-top: 8px;
+  padding-bottom: 16px;
+}
+
+.line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-height: 1.5em;
+}
+.head { font-weight: bold; margin-bottom: 4px; }
+.dim { color: var(--dim); }
+.ok { font-weight: bold; }
+.glow { animation: glow 0.9s ease-in-out 2; }
+@keyframes glow {
+  50% {
+    background: rgba(51, 255, 102, 0.22);
+    text-shadow: 0 0 14px #33ff66, 0 0 2px #ffffff;
+  }
+}
+.err { color: var(--err); }
+.echo { opacity: 0.8; }
+
+.bar { font-variant-numeric: tabular-nums; }
+
+/* Eingabezeile im CMD-Stil */
+.prompt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.prompt { white-space: pre; }
+.term-input {
+  flex: 1 1 160px;
+  min-width: 0;
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--dim);
+  outline: none;
+  padding: 6px 2px;
+  caret-color: var(--fg);
+  border-radius: 0;
+}
+.term-input::placeholder { color: var(--dim); opacity: 0.6; }
+.term-input:focus { border-bottom-color: var(--fg); }
+
+/* Menü */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.opt {
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--fg);
+  border-radius: 0;
+  padding: 12px 14px;
+  min-height: 44px;
+  text-align: left;
+  cursor: pointer;
+  text-shadow: inherit;
+}
+.opt:hover, .opt:focus-visible {
+  background: rgba(51, 255, 102, 0.12);
+  outline: none;
+}
+
+/* Flash: sehr schnelle Infotexte */
+.flash { margin-top: 8px; }
+.flash-line {
+  font-size: 13px;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+/* Fingerabdruck */
+.widget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+}
+.fp svg { width: 170px; height: 170px; display: block; }
+.fp path {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  filter: drop-shadow(0 0 4px rgba(51, 255, 102, 0.7));
+  transition: stroke 0.3s;
+}
+.fp.scan path {
+  animation: draw 1.1s ease-out forwards, pulse 1.6s ease-in-out infinite;
+  animation-delay: var(--d), 0s;
+}
+.fp.ok path {
+  stroke-dashoffset: 0;
+  animation: none;
+  opacity: 1;
+}
+.fp.fail path {
+  stroke: var(--err);
+  stroke-dashoffset: 0;
+  animation: none;
+  opacity: 1;
+  filter: none;
+}
+.fp-caption { margin-top: 6px; color: var(--dim); font-size: 13px; }
+
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* Schloss-Slider */
+.slider {
+  position: relative;
+  width: 110px;
+  height: 260px;
+  margin: 12px auto 6px;
+  border: 1px solid var(--fg);
+  border-radius: 55px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.slider.open { background: rgba(51, 255, 102, 0.08); }
+.knob {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 72px;
+  height: 72px;
+  margin-left: -36px;
+  border: 1px solid var(--fg);
+  border-radius: 50%;
+  background: #000;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  touch-action: none;
+}
+.knob:focus-visible { outline: 1px dashed var(--fg); outline-offset: 4px; }
+.knob svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.slider-label { text-align: center; color: var(--dim); font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fp.scan path { animation: none; stroke-dashoffset: 0; }
+  .log { transition: none; }
+}
