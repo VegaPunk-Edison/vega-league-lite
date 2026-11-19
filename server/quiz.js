@@ -161,6 +161,7 @@ function disgProfile(letters) {
 
 module.exports = {
   DISTRICTS,
+  DISG_TEXT,
   WELCOME,
   disgProfile,
   QUESTIONS,

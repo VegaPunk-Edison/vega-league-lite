@@ -447,8 +447,8 @@
     const labels = ['Registrieren', 'Anmelden'];
     const actions = [registerFlow, () => loginFlow(false)];
     if (state.isAdmin) {
-      labels.push('Demo-Konto', 'Demo zurücksetzen', 'Admin abmelden');
-      actions.push(demoLogin, adminResetDemo, adminLogout);
+      labels.push('Demo-Konto', 'Demo zurücksetzen', 'XP vergeben', 'Admin abmelden');
+      actions.push(demoLogin, adminResetDemo, adminGrantXp, adminLogout);
     } else if (state.adminKeyConfigured) {
       labels.push('Admin');
       actions.push(adminLogin);
@@ -477,6 +477,67 @@
 
   async function adminLogout() {
     await apiPost('/api/admin/logout');
+    return mainMenu();
+  }
+
+  // XP vergeben: E-Mail des Kontos, Nummer der Fähigkeit (1 bis 7), XP.
+  const SKILL_KEYS = ['taktik', 'kommunikation', 'leadership', 'teammanagement', 'networking', 'charisma', 'finances'];
+  const SKILL_NAMES = [
+    'Taktisches Verständnis und Spielanalyse',
+    'Kommunikation & Live-Coaching',
+    'Leadership',
+    'Teammanagement',
+    'Networking',
+    'Charisma',
+    'Finances',
+  ];
+
+  async function adminGrantXp() {
+    const email = await Term.input({
+      prompt: 'E-MAIL>',
+      placeholder: 'Konto-E-Mail',
+      inputmode: 'email',
+      maxLength: 254,
+      autocomplete: 'off',
+    });
+    Term.clearStage();
+    Term.print('Fähigkeiten: ' + SKILL_NAMES.map((n, i) => `${i + 1} ${n}`).join(' · '), 'dim');
+    const num = await Term.input({
+      prompt: 'FÄHIGKEIT>',
+      placeholder: '1 bis 7',
+      inputmode: 'numeric',
+      maxLength: 1,
+      autocomplete: 'off',
+    });
+    const amount = await Term.input({
+      prompt: 'XP>',
+      placeholder: 'ganze Zahl über 0',
+      inputmode: 'numeric',
+      maxLength: 7,
+      autocomplete: 'off',
+    });
+    Term.clearStage();
+
+    const index = Number(num) - 1;
+    if (!SKILL_KEYS[index]) {
+      Term.error('Bitte eine Zahl von 1 bis 7 eingeben.');
+      await Term.sleep(1500);
+      return mainMenu();
+    }
+    const res = await apiPost('/api/admin/skills/grant', {
+      email: email.trim(),
+      skill: SKILL_KEYS[index],
+      xp: Number(amount),
+    });
+    if (res.ok) {
+      Term.print(
+        `[ OK ] ${res.name}: ${SKILL_NAMES[index]} ist jetzt Level ${res.skill.level} (${res.skill.xp} XP).`,
+        'ok'
+      );
+    } else {
+      Term.error(res.error || 'XP konnten nicht vergeben werden.');
+    }
+    await Term.sleep(2000);
     return mainMenu();
   }
 

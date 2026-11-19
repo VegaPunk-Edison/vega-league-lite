@@ -194,6 +194,65 @@ body {
 .subpanel { display: none; }
 .subpanel.active { display: block; }
 
+/* Wischen zwischen Persönlichkeitstyp und Fähigkeiten */
+.views {
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.views-track {
+  display: flex;
+  transition: transform 0.35s ease;
+}
+.view {
+  min-width: 100%;
+}
+.view-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.view-dot {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--navy);
+  background: transparent;
+}
+.view-dot.active { background: var(--gold); border-color: var(--gold); }
+.swipe-hint { margin: 8px 0 0; font-size: 13px; color: var(--navy); text-align: center; }
+
+/* Fähigkeiten-Liste */
+.skill-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.skill-item {
+  padding: 10px 0;
+  border-top: 1px solid rgba(201, 162, 39, 0.6);
+}
+.skill-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: bold;
+  font-size: 15px;
+}
+.skill-level { color: var(--navy); white-space: nowrap; }
+.skill-bar {
+  height: 8px;
+  margin: 6px 0 4px;
+  background: rgba(20, 33, 61, 0.15);
+}
+.skill-bar span {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+}
+.skill-xp { font-size: 13px; color: var(--navy); }
+
 /* DISG-Spider-Chart */
 .chart { margin: 8px auto 4px; max-width: 320px; }
 .chart svg { display: block; width: 100%; height: auto; }

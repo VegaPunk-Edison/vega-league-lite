@@ -70,14 +70,28 @@
         <button class="subtab" data-subtab="einstellungen" type="button">Einstellungen</button>
       </nav>
 
-      <!-- Unter-Tab mit dem Vornamen: Spider Chart (DISG) -->
+      <!-- Unter-Tab mit dem Vornamen: zwei Ansichten, per Wischen wechselbar -->
       <div class="subpanel active" data-subpanel="vorname">
         <div class="card">
-          <p class="kicker">Dein DISG-Profil</p>
-          <h2 class="card-title">Spider Chart</h2>
-          <p id="disg-empty" class="body-text" hidden>Beantworte zuerst das Quiz, dann siehst du hier dein Profil.</p>
-          <div id="disg-chart" class="chart" hidden></div>
-          <div id="disg-result" class="disg-result" hidden></div>
+          <p id="view-kicker" class="kicker">Persönlichkeitstyp</p>
+          <div id="views" class="views">
+            <div class="views-track" id="views-track">
+              <div class="view" data-view="personality">
+                <p id="disg-empty" class="body-text" hidden>Beantworte zuerst das Quiz, dann siehst du hier deinen Persönlichkeitstyp.</p>
+                <div id="disg-chart" class="chart" hidden></div>
+                <div id="disg-result" class="disg-result" hidden></div>
+              </div>
+              <div class="view" data-view="skills">
+                <div id="skill-chart" class="chart"></div>
+                <ul id="skill-list" class="skill-list"></ul>
+              </div>
+            </div>
+          </div>
+          <div class="view-dots" aria-hidden="true">
+            <span class="view-dot active" data-dot="personality"></span>
+            <span class="view-dot" data-dot="skills"></span>
+          </div>
+          <p class="swipe-hint">Wische links oder rechts, um zwischen den Ansichten zu wechseln.</p>
         </div>
       </div>
 

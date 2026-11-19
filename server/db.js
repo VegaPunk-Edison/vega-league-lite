@@ -63,4 +63,35 @@ if (!userColumns.includes('answers')) {
   db.exec('ALTER TABLE users ADD COLUMN answers TEXT');
 }
 
+// Persönlichkeitstyp (D, I, S, G) dauerhaft speichern.
+if (!userColumns.includes('personality')) {
+  db.exec('ALTER TABLE users ADD COLUMN personality TEXT');
+}
+// Für bestehende Konten mit Quiz einmal aus den Antworten nachfüllen.
+{
+  const { disgProfile } = require('./quiz');
+  const missing = db
+    .prepare('SELECT id, answers FROM users WHERE personality IS NULL AND answers IS NOT NULL')
+    .all();
+  const update = db.prepare('UPDATE users SET personality = ? WHERE id = ?');
+  for (const row of missing) {
+    try {
+      const profile = disgProfile(JSON.parse(row.answers));
+      if (profile) update.run(profile.dominant, row.id);
+    } catch (err) {
+      // Ungültige Antworten überspringen.
+    }
+  }
+}
+
+// Fähigkeiten (XP) pro Konto.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS skills (
+    user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    skill    TEXT NOT NULL,
+    xp       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, skill)
+  );
+`);
+
 module.exports = db;

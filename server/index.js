@@ -11,7 +11,8 @@ const {
 } = require('@simplewebauthn/server');
 const db = require('./db');
 const { validateField, FIELDS } = require('./validate');
-const { DISTRICTS, WELCOME, publicQuestions, scoreAnswers, disgProfile } = require('./quiz');
+const { DISTRICTS, DISG_TEXT, WELCOME, publicQuestions, scoreAnswers, disgProfile } = require('./quiz');
+const { SKILLS, skillView } = require('./skills');
 
 const PORT = Number(process.env.PORT) || 3000;
 // Kennung dieses Builds. Unter http://localhost:3000/api/state sichtbar.
@@ -234,15 +235,39 @@ app.post('/api/admin/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+// XP für eine Fähigkeit eines Kontos vergeben (nur Admin). Vorerst die einzige XP-Quelle.
+app.post('/api/admin/skills/grant', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ ok: false, error: 'Nur für den Admin.' });
+
+  const email = String(req.body?.email ?? '').trim().toLowerCase();
+  const skill = SKILLS.find((s) => s.key === String(req.body?.skill ?? ''));
+  const xp = Number(req.body?.xp);
+  if (!skill) return res.status(400).json({ ok: false, error: 'Unbekannte Fähigkeit.' });
+  if (!Number.isInteger(xp) || xp <= 0 || xp > 1000000) {
+    return res.status(400).json({ ok: false, error: 'XP muss eine ganze Zahl über 0 sein.' });
+  }
+
+  const user = db.prepare('SELECT id, name FROM users WHERE email = ?').get(email);
+  if (!user) return res.status(404).json({ ok: false, error: 'Kein Konto mit dieser E-Mail.' });
+
+  db.prepare(
+    `INSERT INTO skills (user_id, skill, xp) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, skill) DO UPDATE SET xp = xp + excluded.xp`
+  ).run(user.id, skill.key, xp);
+  const row = db.prepare('SELECT xp FROM skills WHERE user_id = ? AND skill = ?').get(user.id, skill.key);
+  res.json({ ok: true, name: user.name, skill: skillView(skill, row.xp) });
+});
+
 // Demo-Konto auf den Ausgangszustand zurücksetzen (Quiz kommt wieder, Daten Standard).
 app.post('/api/admin/demo/reset', (req, res) => {
   if (!DEMO_ENABLED) return res.status(404).json({ ok: false, error: 'Demo-Zugang ist ausgeschaltet.' });
   if (!isAdmin(req)) return res.status(403).json({ ok: false, error: 'Nur für den Admin.' });
   try {
     db.prepare(
-      `UPDATE users SET name = ?, birthdate = ?, phone = ?, email = ?, district = NULL, answers = NULL
+      `UPDATE users SET name = ?, birthdate = ?, phone = ?, email = ?, district = NULL, answers = NULL, personality = NULL
        WHERE id = ?`
     ).run('Max Demo', '01.01.1990', '+4900000001', 'demo@example.com', DEMO_USER_ID);
+    db.prepare('DELETE FROM skills WHERE user_id = ?').run(DEMO_USER_ID);
   } catch (err) {
     return res.status(409).json({ ok: false, error: 'Die Standard-E-Mail des Demo-Kontos ist bereits vergeben.' });
   }
@@ -548,6 +573,18 @@ function districtView(key) {
   return { key, name: DISTRICTS[key].name, desc: DISTRICTS[key].desc };
 }
 
+function personalityView(type) {
+  if (!type || !DISG_TEXT[type]) return null;
+  return { type, name: DISG_TEXT[type].name, description: DISG_TEXT[type].desc };
+}
+
+// Alle sieben Fähigkeiten eines Kontos, mit 0 XP für fehlende Einträge.
+function skillsFor(userId) {
+  const rows = db.prepare('SELECT skill, xp FROM skills WHERE user_id = ?').all(userId);
+  const xpByKey = Object.fromEntries(rows.map((r) => [r.skill, r.xp]));
+  return SKILLS.map((s) => skillView(s, xpByKey[s.key] || 0));
+}
+
 function profileView(u) {
   return { name: u.name, birthdate: u.birthdate, phone: u.phone, email: u.email };
 }
@@ -567,6 +604,8 @@ app.get('/api/me', (req, res) => {
     profile: profileView(user),
     district: districtView(user.district),
     disg: user.district && answers ? disgProfile(answers) : null,
+    personality: personalityView(user.personality),
+    skills: skillsFor(user.id),
   });
 });
 
@@ -622,9 +661,11 @@ app.post('/api/quiz/submit', (req, res) => {
     return res.status(400).json({ ok: false, error: err.message });
   }
 
-  db.prepare('UPDATE users SET district = ?, answers = ? WHERE id = ?').run(
+  const profile = disgProfile(answers);
+  db.prepare('UPDATE users SET district = ?, answers = ?, personality = ? WHERE id = ?').run(
     key,
     JSON.stringify(answers),
+    profile ? profile.dominant : null,
     user.id
   );
   res.json({ ok: true, district: districtView(key) });

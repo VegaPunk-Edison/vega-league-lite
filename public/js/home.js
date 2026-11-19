@@ -277,7 +277,7 @@
     box.innerHTML = '';
     const type = document.createElement('p');
     type.className = 'disg-type';
-    type.textContent = `Dein DISG-Typ: ${disg.dominant} – ${disg.name}`;
+    type.textContent = `Dein Persönlichkeitstyp: ${disg.dominant} – ${disg.name}`;
     const desc = document.createElement('p');
     desc.className = 'body-text';
     desc.textContent = disg.description;
@@ -286,8 +286,145 @@
 
   async function refreshDisg() {
     const me = await get('/api/me');
-    if (me.ok) renderDisg(me.disg);
+    if (me.ok) {
+      renderDisg(me.disg);
+      renderSkills(me.skills);
+    }
   }
+
+  // ---------- Vereinsmanager-Fähigkeiten (7 Achsen, Level und XP) ----------
+
+  function renderSkillChart(skills) {
+    const cx = 230;
+    const cy = 190;
+    const R = 90;
+    const max = Math.max(10, ...skills.map((s) => s.level));
+    const n = skills.length;
+    const angle = (i) => -90 + (360 / n) * i; // oben beginnend, im Uhrzeigersinn
+    const box = $('skill-chart');
+    box.innerHTML = '';
+
+    const svg = svgEl('svg', {
+      viewBox: '0 0 460 380',
+      role: 'img',
+      'aria-label': 'Fähigkeiten: ' + skills.map((s) => `${s.short} Level ${s.level}`).join(', '),
+    });
+
+    // Gitter: vier Ringe
+    [0.25, 0.5, 0.75, 1].forEach((f) => {
+      const pts = skills.map((_, i) => polar(cx, cy, R * f, angle(i)).join(',')).join(' ');
+      svg.appendChild(svgEl('polygon', { points: pts, fill: 'none', stroke: '#14213d', 'stroke-opacity': '0.25', 'stroke-width': '1' }));
+    });
+
+    // Achsen
+    skills.forEach((_, i) => {
+      const [x, y] = polar(cx, cy, R, angle(i));
+      svg.appendChild(svgEl('line', { x1: cx, y1: cy, x2: x, y2: y, stroke: '#14213d', 'stroke-opacity': '0.4', 'stroke-width': '1' }));
+    });
+
+    // Datenfläche
+    const data = skills.map((s, i) => polar(cx, cy, (R * s.level) / max, angle(i)).join(',')).join(' ');
+    svg.appendChild(svgEl('polygon', { points: data, fill: '#c9a227', 'fill-opacity': '0.35', stroke: '#c9a227', 'stroke-width': '3', 'stroke-linejoin': 'round' }));
+    skills.forEach((s, i) => {
+      const [x, y] = polar(cx, cy, (R * s.level) / max, angle(i));
+      svg.appendChild(svgEl('circle', { cx: x, cy: y, r: '4', fill: '#14213d' }));
+    });
+
+    // Beschriftung: Kurzname und Level
+    skills.forEach((s, i) => {
+      const a = (angle(i) * Math.PI) / 180;
+      const x = cx + (R + 16) * Math.cos(a);
+      const y = cy + (R + 16) * Math.sin(a) + 5;
+      const c = Math.cos(a);
+      const anchor = c > 0.3 ? 'start' : c < -0.3 ? 'end' : 'middle';
+      const label = svgEl('text', { x, y, 'text-anchor': anchor, fill: '#111111', 'font-size': '14', 'font-weight': 'bold' });
+      label.textContent = `${s.short} ${s.level}`;
+      svg.appendChild(label);
+    });
+
+    box.appendChild(svg);
+  }
+
+  function renderSkillList(skills) {
+    const list = $('skill-list');
+    list.innerHTML = '';
+    skills.forEach((s) => {
+      const li = document.createElement('li');
+      li.className = 'skill-item';
+
+      const head = document.createElement('div');
+      head.className = 'skill-head';
+      const name = document.createElement('span');
+      name.textContent = s.name;
+      const level = document.createElement('span');
+      level.className = 'skill-level';
+      level.textContent = `Level ${s.level}`;
+      head.append(name, level);
+
+      const bar = document.createElement('div');
+      bar.className = 'skill-bar';
+      const fill = document.createElement('span');
+      fill.style.width = `${s.progress}%`;
+      bar.appendChild(fill);
+
+      const xp = document.createElement('div');
+      xp.className = 'skill-xp';
+      xp.textContent = `${s.xpIntoLevel} / ${s.xpForNext} XP bis Level ${s.level + 1} · ${s.xp} XP gesamt`;
+
+      li.append(head, bar, xp);
+      list.appendChild(li);
+    });
+  }
+
+  function renderSkills(skills) {
+    if (!skills) return;
+    renderSkillChart(skills);
+    renderSkillList(skills);
+  }
+
+  // ---------- Wischen zwischen Persönlichkeitstyp und Fähigkeiten ----------
+
+  const VIEWS = ['personality', 'skills'];
+  let viewIndex = 0;
+
+  function setView(index) {
+    viewIndex = Math.max(0, Math.min(VIEWS.length - 1, index));
+    $('views-track').style.transform = `translateX(${-viewIndex * 100}%)`;
+    document.querySelectorAll('.view-dot').forEach((d) => {
+      d.classList.toggle('active', d.dataset.dot === VIEWS[viewIndex]);
+    });
+    $('view-kicker').textContent = viewIndex === 0 ? 'Persönlichkeitstyp' : 'Vereinsmanager-Fähigkeiten';
+  }
+
+  (function bindSwipe() {
+    const area = $('views');
+    let startX = null;
+    let startY = null;
+
+    area.addEventListener('pointerdown', (e) => {
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+    area.addEventListener('pointerup', (e) => {
+      if (startX === null) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      startX = null;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+        setView(viewIndex + (dx < 0 ? 1 : -1));
+      }
+    });
+    area.addEventListener('pointercancel', () => {
+      startX = null;
+    });
+
+    // Am Desktop mit Pfeiltasten, wenn der Bereich sichtbar ist.
+    document.addEventListener('keydown', (e) => {
+      if (!area.offsetParent) return;
+      if (e.key === 'ArrowRight') setView(viewIndex + 1);
+      if (e.key === 'ArrowLeft') setView(viewIndex - 1);
+    });
+  })();
 
   // ---------- Start ----------
 
@@ -302,6 +439,8 @@
     const firstName = (me.name || '').trim().split(/\s+/)[0] || 'Vorname';
     $('subtab-name').textContent = firstName;
     renderDisg(me.disg);
+    renderSkills(me.skills);
+    setView(0);
 
     if (me.district) {
       showOzean(me.district);
