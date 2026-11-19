@@ -253,6 +253,134 @@ body {
 }
 .skill-xp { font-size: 13px; color: var(--navy); }
 
+/* Mini-Überschrift im Quiz */
+.quiz-intro {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--navy);
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--gold);
+}
+
+/* Zeitalter */
+.era-card { border-left: 6px solid var(--gold); }
+
+/* Kader */
+.roster { list-style: none; margin: 8px 0 12px; padding: 0; }
+.roster li { margin-bottom: 8px; }
+.roster-item {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: #ffffff;
+  border: 2px solid var(--navy);
+  border-radius: 0;
+  padding: 10px 12px;
+  min-height: 52px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.roster-item:hover, .roster-item:focus-visible { border-color: var(--gold); outline: none; }
+.roster-item span:first-child { font-weight: bold; }
+.roster-meta { font-size: 13px; color: var(--navy); }
+.pos-select {
+  width: 100%;
+  font: inherit;
+  padding: 12px;
+  background: #ffffff;
+  color: var(--ink);
+  border: 2px solid var(--navy);
+  border-radius: 0;
+  min-height: 46px;
+}
+.ghost-dark {
+  font: inherit;
+  font-size: 14px;
+  color: var(--navy);
+  background: transparent;
+  border: 2px solid var(--navy);
+  border-radius: 0;
+  padding: 10px 14px;
+  min-height: 44px;
+  margin: 12px 8px 0 0;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Spieler-Detail: links Metriken, rechts Mini-Chart */
+.player-split {
+  display: grid;
+  grid-template-columns: 1fr 130px;
+  gap: 10px;
+  align-items: start;
+}
+.metric-list { list-style: none; margin: 0; padding: 0; }
+.metric-item { border-top: 1px solid rgba(201, 162, 39, 0.6); }
+.metric-row {
+  width: 100%;
+  font: inherit;
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  gap: 6px;
+  align-items: center;
+  text-align: left;
+  background: transparent;
+  color: var(--ink);
+  border: none;
+  padding: 10px 0;
+  min-height: 44px;
+  cursor: pointer;
+}
+.metric-key { font-weight: bold; color: var(--navy); }
+.metric-name { font-size: 14px; }
+.metric-lvl { font-weight: bold; color: var(--navy); }
+.metric-detail { padding: 0 0 10px; }
+.mini-wrap { border: 1px solid var(--navy); background: var(--paper); padding: 4px; }
+.mini-chart svg { display: block; width: 100%; height: auto; }
+
+/* Anlauf: Pfad, Hauptboss, Minibosse */
+.path-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0 12px; }
+.path-btn {
+  font: inherit;
+  font-weight: bold;
+  color: #ffffff;
+  border: 2px solid #14213d;
+  border-radius: 0;
+  padding: 14px 8px;
+  min-height: 52px;
+  cursor: pointer;
+}
+.boss-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+.boss-option {
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: #ffffff;
+  border: 2px solid var(--navy);
+  border-radius: 0;
+  padding: 12px;
+  min-height: 48px;
+  cursor: pointer;
+}
+.boss-option:hover, .boss-option:focus-visible { border-color: var(--gold); outline: none; }
+.miniboss-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.miniboss-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(201, 162, 39, 0.6);
+  font-size: 15px;
+}
+.miniboss-info { color: var(--navy); font-size: 13px; white-space: nowrap; }
+.status-besiegt .miniboss-info { color: #1f6b3a; font-weight: bold; }
+.status-aktuell span:first-child { font-weight: bold; }
+.status-gesperrt { opacity: 0.55; }
+
 /* DISG-Spider-Chart */
 .chart { margin: 8px auto 4px; max-width: 320px; }
 .chart svg { display: block; width: 100%; height: auto; }

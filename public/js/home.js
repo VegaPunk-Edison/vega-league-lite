@@ -426,6 +426,343 @@
     });
   })();
 
+  // ---------- Zeitalter, Verein und Kader ----------
+
+  const POSITION_NAMES = {
+    TW: 'Torwart',
+    IV: 'Innenverteidiger',
+    LV: 'Linksverteidiger',
+    RV: 'Rechtsverteidiger',
+    DM: 'Defensives Mittelfeld',
+    ZM: 'Zentrales Mittelfeld',
+    OM: 'Offensives Mittelfeld',
+    LM: 'Linkes Mittelfeld',
+    RM: 'Rechtes Mittelfeld',
+    LA: 'Linker Angreifer',
+    RA: 'Rechter Angreifer',
+    ST: 'Mittelstürmer',
+  };
+  const MAX_PLAYERS_CLIENT = 24;
+
+  function renderEra(club) {
+    $('era-name').textContent = club ? club.era : 'Antike';
+    $('era-info').textContent = club
+      ? `${club.name} · ${club.playerCount} / ${club.maxPlayers} Spieler`
+      : 'Melde deinen Verein unter Karriere an, dann startest du in der Antike.';
+  }
+
+  function renderClubStatus(club) {
+    $('club-register').hidden = !!club;
+    $('club-registered').hidden = !club;
+    if (!club) return;
+    $('club-name').textContent = club.name;
+    $('club-info').textContent = `Zeitalter: ${club.era} · ${club.playerCount} / ${club.maxPlayers} Spieler`;
+  }
+
+  function fillPositionSelects() {
+    document.querySelectorAll('.pos-select').forEach((sel) => {
+      sel.innerHTML = '';
+      const none = document.createElement('option');
+      none.value = '';
+      none.textContent = '– keine –';
+      sel.appendChild(none);
+      Object.entries(POSITION_NAMES).forEach(([code, name]) => {
+        const opt = document.createElement('option');
+        opt.value = code;
+        opt.textContent = `${code} · ${name}`;
+        sel.appendChild(opt);
+      });
+    });
+  }
+
+  // ---------- Anlauf: Pfad, Hauptboss, Minibosse ----------
+
+  const DIFFICULTY_LABEL = { schwer: 'schwer', mittel: 'mittel', leicht: 'leicht' };
+  const STATUS_LABEL = { besiegt: 'besiegt', aktuell: 'aktuell', gesperrt: 'gesperrt' };
+  let myDistrictName = null;
+
+  function renderBoss(boss) {
+    const card = $('boss-card');
+    card.hidden = false;
+    $('boss-district').textContent = myDistrictName
+      ? `Dein Ozean: ${myDistrictName}`
+      : 'Dein Ozean steht erst nach dem Quiz fest.';
+    $('boss-note').hidden = true;
+
+    const active = !!boss.bossId;
+    $('path-choice').hidden = active;
+    $('boss-options').hidden = active || !boss.path || boss.options.length === 0;
+    $('boss-active').hidden = !active;
+
+    // Pfad-Buttons: Auswahl auch sichtbar, wenn noch kein Pfad gewählt ist
+    document.querySelectorAll('.path-btn').forEach((b) => {
+      b.style.outline = b.dataset.path === boss.path ? '3px solid #c9a227' : 'none';
+    });
+
+    const options = $('boss-option-list');
+    options.innerHTML = '';
+    boss.options.forEach((o) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'boss-option';
+      btn.textContent = o.name;
+      btn.addEventListener('click', async () => {
+        const res = await post('/api/club/boss', { bossId: o.id });
+        if (res.ok) loadClub();
+        else showBossNote(res.error);
+      });
+      options.appendChild(btn);
+    });
+
+    if (active) {
+      $('boss-active-name').textContent = boss.bossName;
+      $('boss-active-path').textContent = boss.pathName;
+      const list = $('miniboss-list');
+      list.innerHTML = '';
+      boss.minibosses.forEach((m) => {
+        const li = document.createElement('li');
+        li.className = `miniboss-item status-${m.status}`;
+        const name = document.createElement('span');
+        name.textContent = m.name;
+        const info = document.createElement('span');
+        info.className = 'miniboss-info';
+        info.textContent = `${DIFFICULTY_LABEL[m.difficulty]} · ${STATUS_LABEL[m.status]}`;
+        li.append(name, info);
+        list.appendChild(li);
+      });
+    }
+  }
+
+  function showBossNote(text) {
+    $('boss-note').textContent = text;
+    $('boss-note').hidden = false;
+  }
+
+  document.querySelectorAll('.path-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const res = await post('/api/club/path', { path: btn.dataset.path });
+      if (res.ok) loadClub();
+      else showBossNote(res.error);
+    });
+  });
+
+  function showRosterView() {
+    $('player-detail').hidden = true;
+    $('roster').closest('.card').hidden = false;
+  }
+
+  async function loadClub() {
+    const res = await get('/api/club');
+    if (!res.ok) return;
+    renderClubStatus(res.club);
+    $('club-missing').hidden = !!res.club;
+    $('club-roster-view').hidden = !res.club;
+    if (!res.club) return;
+    renderBoss(res.boss);
+
+    $('roster-title').textContent = `${res.club.name} · ${res.club.playerCount} / ${res.club.maxPlayers} Spieler`;
+    const list = $('roster');
+    list.innerHTML = '';
+    res.players.forEach((p) => {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'roster-item';
+      const name = document.createElement('span');
+      name.textContent = p.fullName;
+      const meta = document.createElement('span');
+      meta.className = 'roster-meta';
+      meta.textContent = `${p.posMain || '–'} · ${p.country} · ${p.vegaId}`;
+      btn.append(name, meta);
+      btn.addEventListener('click', () => openPlayer(p.id));
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+    $('show-add-player').disabled = res.club.playerCount >= MAX_PLAYERS_CLIENT;
+    showRosterView();
+  }
+
+  // Kleines Radar für Spieler (eine Gruppe, Achsen = Metriken).
+  function drawRadar(box, axes) {
+    const cx = 100;
+    const cy = 100;
+    const R = 62;
+    const max = Math.max(10, ...axes.map((a) => a.level));
+    const n = axes.length;
+    const angle = (i) => -90 + (360 / n) * i;
+    box.innerHTML = '';
+    const svg = svgEl('svg', { viewBox: '0 0 200 200', role: 'img', 'aria-label': axes.map((a) => `${a.label} ${a.level}`).join(', ') });
+    [0.25, 0.5, 0.75, 1].forEach((f) => {
+      const pts = axes.map((_, i) => polar(cx, cy, R * f, angle(i)).join(',')).join(' ');
+      svg.appendChild(svgEl('polygon', { points: pts, fill: 'none', stroke: '#14213d', 'stroke-opacity': '0.25', 'stroke-width': '1' }));
+    });
+    axes.forEach((_, i) => {
+      const [x, y] = polar(cx, cy, R, angle(i));
+      svg.appendChild(svgEl('line', { x1: cx, y1: cy, x2: x, y2: y, stroke: '#14213d', 'stroke-opacity': '0.4', 'stroke-width': '1' }));
+    });
+    const data = axes.map((a, i) => polar(cx, cy, (R * a.level) / max, angle(i)).join(',')).join(' ');
+    svg.appendChild(svgEl('polygon', { points: data, fill: '#c9a227', 'fill-opacity': '0.35', stroke: '#c9a227', 'stroke-width': '2.5', 'stroke-linejoin': 'round' }));
+    axes.forEach((a, i) => {
+      const [x, y] = polar(cx, cy, (R * a.level) / max, angle(i));
+      svg.appendChild(svgEl('circle', { cx: x, cy: y, r: '3', fill: '#14213d' }));
+      const [lx, ly] = polar(cx, cy, R + 14, angle(i));
+      const c = Math.cos((angle(i) * Math.PI) / 180);
+      const label = svgEl('text', { x: lx, y: ly + 4, 'text-anchor': c > 0.3 ? 'start' : c < -0.3 ? 'end' : 'middle', fill: '#111111', 'font-size': '10', 'font-weight': 'bold' });
+      label.textContent = a.label;
+      svg.appendChild(label);
+    });
+    box.appendChild(svg);
+  }
+
+  let currentPlayer = null;
+  let groupIndex = 0;
+  const GROUP_KEYS = ['technics', 'athletics'];
+
+  async function openPlayer(id) {
+    const res = await get(`/api/club/players/${id}`);
+    if (!res.ok) return;
+    currentPlayer = res.player;
+    groupIndex = 0;
+    $('roster').closest('.card').hidden = true;
+    $('add-player').hidden = true;
+    $('player-detail').hidden = false;
+
+    const p = currentPlayer;
+    $('pd-name').textContent = p.fullName;
+    $('pd-meta').textContent = `Vega ID ${p.vegaId} · Jahrgang ${p.birthYear} · ${p.country}`;
+    const pos = p.positions;
+    const side = [pos.side1, pos.side2].filter(Boolean).map((c) => c).join(', ');
+    $('pd-positions').textContent = `Hauptposition: ${pos.main ? POSITION_NAMES[pos.main] : '–'}` + (side ? ` · Nebenpositionen: ${side}` : '');
+    renderPlayerGroup();
+    $('player-detail').scrollIntoView({ block: 'start' });
+  }
+
+  function renderPlayerGroup() {
+    const group = currentPlayer.groups[groupIndex];
+    $('pd-view-name').textContent = group.name;
+    const list = $('pd-metrics');
+    list.innerHTML = '';
+    group.metrics.forEach((m) => {
+      const li = document.createElement('li');
+      li.className = 'metric-item';
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'metric-row';
+      const key = document.createElement('span');
+      key.className = 'metric-key';
+      key.textContent = m.key;
+      const name = document.createElement('span');
+      name.className = 'metric-name';
+      name.textContent = m.name;
+      const lvl = document.createElement('span');
+      lvl.className = 'metric-lvl';
+      lvl.textContent = `L ${m.level}`;
+      row.append(key, name, lvl);
+
+      const detail = document.createElement('div');
+      detail.className = 'metric-detail';
+      detail.hidden = true;
+      const text = document.createElement('div');
+      text.className = 'skill-xp';
+      text.textContent = `Level ${m.level} · ${m.xpIntoLevel} / ${m.xpForNext} XP · ${m.xp} XP gesamt`;
+      const bar = document.createElement('div');
+      bar.className = 'skill-bar';
+      const fill = document.createElement('span');
+      fill.style.width = `${m.progress}%`;
+      bar.appendChild(fill);
+      detail.append(text, bar);
+
+      row.addEventListener('click', () => {
+        detail.hidden = !detail.hidden;
+      });
+      li.append(row, detail);
+      list.appendChild(li);
+    });
+
+    drawRadar($('pd-chart'), group.metrics.map((m) => ({ label: m.key, level: m.level })));
+    document.querySelectorAll('[data-pdot]').forEach((d) => {
+      d.classList.toggle('active', d.dataset.pdot === GROUP_KEYS[groupIndex]);
+    });
+  }
+
+  (function bindPlayerSwipe() {
+    const area = $('pd-chart');
+    let startX = null;
+    area.addEventListener('pointerdown', (e) => {
+      startX = e.clientX;
+    });
+    area.addEventListener('pointerup', (e) => {
+      if (startX === null || !currentPlayer) return;
+      const dx = e.clientX - startX;
+      startX = null;
+      if (Math.abs(dx) > 40) {
+        groupIndex = (groupIndex + (dx < 0 ? 1 : currentPlayer.groups.length - 1)) % currentPlayer.groups.length;
+        renderPlayerGroup();
+      }
+    });
+    area.addEventListener('pointercancel', () => {
+      startX = null;
+    });
+  })();
+
+  $('close-player').addEventListener('click', () => {
+    currentPlayer = null;
+    showRosterView();
+    loadClub();
+  });
+
+  $('show-add-player').addEventListener('click', () => {
+    $('add-player').hidden = false;
+    $('player-message').hidden = true;
+    fillPositionSelects();
+    $('add-player').scrollIntoView({ block: 'start' });
+  });
+
+  $('cancel-add-player').addEventListener('click', () => {
+    $('add-player').hidden = true;
+    $('player-form').reset();
+  });
+
+  $('player-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const body = {};
+    ['fullName', 'vegaId', 'birthYear', 'country', 'email', 'phone', 'posMain', 'posSide1', 'posSide2'].forEach((f) => {
+      body[f] = form.elements[f].value;
+    });
+    const res = await post('/api/club/players', body);
+    const msg = $('player-message');
+    if (res.ok) {
+      form.reset();
+      $('add-player').hidden = true;
+      msg.hidden = true;
+      await loadClub();
+      return;
+    }
+    msg.textContent = res.error || 'Der Spieler konnte nicht gespeichert werden.';
+    msg.className = 'status error';
+    msg.hidden = false;
+  });
+
+  $('club-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const res = await post('/api/club', { name: e.currentTarget.elements.name.value });
+    const msg = $('club-message');
+    if (res.ok) {
+      renderClubStatus(res.club);
+      renderEra(res.club);
+      await loadClub();
+      return;
+    }
+    msg.textContent = res.error || 'Der Verein konnte nicht angemeldet werden.';
+    msg.className = 'status error';
+    msg.hidden = false;
+  });
+
+  document.querySelectorAll('.tab').forEach((t) => {
+    if (t.dataset.tab === 'verein') t.addEventListener('click', loadClub);
+  });
+
   // ---------- Start ----------
 
   async function init() {
@@ -441,6 +778,10 @@
     renderDisg(me.disg);
     renderSkills(me.skills);
     setView(0);
+    renderEra(me.club);
+    renderClubStatus(me.club);
+    fillPositionSelects();
+    myDistrictName = me.district ? me.district.name : null;
 
     if (me.district) {
       showOzean(me.district);

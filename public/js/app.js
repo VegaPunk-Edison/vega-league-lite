@@ -447,8 +447,8 @@
     const labels = ['Registrieren', 'Anmelden'];
     const actions = [registerFlow, () => loginFlow(false)];
     if (state.isAdmin) {
-      labels.push('Demo-Konto', 'Demo zurücksetzen', 'XP vergeben', 'Admin abmelden');
-      actions.push(demoLogin, adminResetDemo, adminGrantXp, adminLogout);
+      labels.push('Demo-Konto', 'Demo zurücksetzen', 'XP vergeben', 'Spieler-XP', 'Bosssieg', 'Admin abmelden');
+      actions.push(demoLogin, adminResetDemo, adminGrantXp, adminGrantPlayerXp, adminBossWin, adminLogout);
     } else if (state.adminKeyConfigured) {
       labels.push('Admin');
       actions.push(adminLogin);
@@ -536,6 +536,59 @@
       );
     } else {
       Term.error(res.error || 'XP konnten nicht vergeben werden.');
+    }
+    await Term.sleep(2000);
+    return mainMenu();
+  }
+
+  // Spieler-XP: Vega ID, Nummer der Metrik (1 bis 10), XP.
+  const PLAYER_METRIC_KEYS = [
+    'SHO', 'PAS', 'DRI', 'PAC', 'DEF', 'PHY',
+    'GAMESENSE', 'SPIELWISSEN', 'MINDSET', 'CHARISMA',
+  ];
+
+  async function adminGrantPlayerXp() {
+    const vegaId = await Term.input({ prompt: 'VEGA ID>', placeholder: 'Vega ID des Spielers', maxLength: 40, autocomplete: 'off' });
+    Term.clearStage();
+    Term.print('Metriken: ' + PLAYER_METRIC_KEYS.map((k, i) => `${i + 1} ${k}`).join(' · '), 'dim');
+    const num = await Term.input({ prompt: 'METRIK>', placeholder: '1 bis 10', inputmode: 'numeric', maxLength: 2, autocomplete: 'off' });
+    const amount = await Term.input({ prompt: 'XP>', placeholder: 'ganze Zahl über 0', inputmode: 'numeric', maxLength: 7, autocomplete: 'off' });
+    Term.clearStage();
+
+    const metric = PLAYER_METRIC_KEYS[Number(num) - 1];
+    if (!metric) {
+      Term.error('Bitte eine Zahl von 1 bis 10 eingeben.');
+      await Term.sleep(1500);
+      return mainMenu();
+    }
+    const res = await apiPost('/api/admin/players/grant', { vegaId: vegaId.trim(), metric, xp: Number(amount) });
+    if (res.ok) {
+      const m = res.player.groups.flatMap((g) => g.metrics).find((x) => x.key === metric);
+      Term.print(`[ OK ] ${res.player.fullName}: ${metric} ist jetzt Level ${m.level} (${m.xp} XP).`, 'ok');
+    } else {
+      Term.error(res.error || 'XP konnten nicht vergeben werden.');
+    }
+    await Term.sleep(2000);
+    return mainMenu();
+  }
+
+  // Bosssieg eintragen: E-Mail des Vereins, dann Miniboss (1) oder Hauptboss (2).
+  async function adminBossWin() {
+    const email = await Term.input({ prompt: 'E-MAIL>', placeholder: 'E-Mail des Vereins', inputmode: 'email', maxLength: 254, autocomplete: 'off' });
+    const kind = await Term.input({ prompt: 'ART>', placeholder: '1 = Miniboss, 2 = Hauptboss', inputmode: 'numeric', maxLength: 1, autocomplete: 'off' });
+    Term.clearStage();
+    const type = kind.trim() === '1' ? 'miniboss' : kind.trim() === '2' ? 'main' : null;
+    if (!type) {
+      Term.error('Bitte 1 für Miniboss oder 2 für Hauptboss eingeben.');
+      await Term.sleep(1500);
+      return mainMenu();
+    }
+    const res = await apiPost('/api/admin/club/win', { email: email.trim(), kind: type });
+    if (res.ok) {
+      const label = type === 'main' ? `Hauptboss besiegt, jetzt ${res.club.era}` : `Miniboss besiegt (${res.boss.miniWon} / 3)`;
+      Term.print(`[ OK ] ${res.club.name}: ${label}.`, 'ok');
+    } else {
+      Term.error(res.error || 'Sieg konnte nicht eingetragen werden.');
     }
     await Term.sleep(2000);
     return mainMenu();

@@ -21,6 +21,13 @@
         <p id="greeting" class="lead">Willkommen.</p>
       </div>
 
+      <!-- Zeitalter des Vereins (immer ganz oben) -->
+      <div class="card era-card">
+        <p class="kicker">Zeitalter</p>
+        <h2 id="era-name" class="card-title">Antike</h2>
+        <p id="era-info" class="body-text">Melde deinen Verein unter Karriere an, dann startest du in der Antike.</p>
+      </div>
+
       <!-- Ozean (wenn schon festgelegt) -->
       <div id="district" class="card" hidden>
         <p class="kicker">Dein Ozean</p>
@@ -37,6 +44,7 @@
 
       <!-- Quiz -->
       <div id="quiz" class="card" hidden>
+        <p class="quiz-intro">Dein Einstieg in Babylonia</p>
         <div class="progress"><span id="progress-bar"></span></div>
         <p class="kicker" id="quiz-step"></p>
         <h2 id="quiz-title" class="card-title"></h2>
@@ -48,7 +56,81 @@
 
     <section class="panel" data-panel="verein" aria-label="Verein">
       <h1 class="page-title">Verein</h1>
-      <div class="card"><p class="body-text">Dieser Bereich kommt bald.</p></div>
+
+      <div id="club-missing" class="card" hidden>
+        <p class="body-text">Du hast noch keinen Verein. Melde ihn unter Karriere in der Vega League an.</p>
+      </div>
+
+      <div id="club-roster-view" hidden>
+        <div id="boss-card" class="card" hidden>
+          <p class="kicker">Anlauf</p>
+          <h2 class="card-title">Pfad und Hauptboss</h2>
+          <p id="boss-district" class="body-text"></p>
+
+          <div id="path-choice" hidden>
+            <p class="body-text">Wähle deinen Pfad:</p>
+            <div class="path-row">
+              <button class="path-btn" data-path="admiral" type="button" style="background:#2b2a6b">Admiral</button>
+              <button class="path-btn" data-path="kaiser" type="button" style="background:#6b1a2a">Kaiser</button>
+            </div>
+          </div>
+
+          <div id="boss-options" hidden>
+            <p class="body-text">Wähle einen der drei Hauptbosse:</p>
+            <div id="boss-option-list" class="boss-list"></div>
+          </div>
+
+          <div id="boss-active" hidden>
+            <p class="body-text"><strong id="boss-active-name"></strong> · Pfad <span id="boss-active-path"></span></p>
+            <ul id="miniboss-list" class="miniboss-list"></ul>
+          </div>
+          <p id="boss-note" class="body-text" hidden></p>
+        </div>
+
+        <div class="card">
+          <p class="kicker">Kader</p>
+          <h2 id="roster-title" class="card-title"></h2>
+          <ul id="roster" class="roster"></ul>
+          <button id="show-add-player" class="primary" type="button">Spieler hinzufügen</button>
+        </div>
+
+        <div id="add-player" class="card" hidden>
+          <h2 class="card-title">Neuer Spieler</h2>
+          <form id="player-form" autocomplete="off" novalidate>
+            <label class="field"><span>Vollständiger Name *</span><input name="fullName" type="text" maxlength="80" required></label>
+            <label class="field"><span>Vega ID (Benutzername) *</span><input name="vegaId" type="text" maxlength="40" required></label>
+            <label class="field"><span>Geburtsjahr *</span><input name="birthYear" type="text" inputmode="numeric" maxlength="4" required></label>
+            <label class="field"><span>Land *</span><input name="country" type="text" maxlength="60" required></label>
+            <label class="field"><span>E-Mail (optional)</span><input name="email" type="email" maxlength="254"></label>
+            <label class="field"><span>Telefon (optional)</span><input name="phone" type="tel" maxlength="24"></label>
+            <label class="field"><span>Hauptposition (optional)</span><select name="posMain" class="pos-select"></select></label>
+            <label class="field"><span>Nebenposition 1 (optional)</span><select name="posSide1" class="pos-select"></select></label>
+            <label class="field"><span>Nebenposition 2 (optional)</span><select name="posSide2" class="pos-select"></select></label>
+            <button class="primary" type="submit">Spieler speichern</button>
+            <button id="cancel-add-player" class="ghost-dark" type="button">Abbrechen</button>
+            <p id="player-message" class="status" hidden></p>
+          </form>
+        </div>
+
+        <div id="player-detail" class="card" hidden>
+          <button id="close-player" class="ghost-dark" type="button">Zurück zum Kader</button>
+          <h2 id="pd-name" class="card-title"></h2>
+          <p id="pd-meta" class="body-text"></p>
+          <p id="pd-positions" class="body-text"></p>
+          <p class="kicker" id="pd-view-name">Technics</p>
+          <div class="player-split">
+            <ul id="pd-metrics" class="metric-list"></ul>
+            <div class="mini-wrap">
+              <div id="pd-chart" class="mini-chart"></div>
+            </div>
+          </div>
+          <p class="swipe-hint">Wische über das Diagramm, um zwischen Technics und PIFA E-Sport Athletics zu wechseln.</p>
+          <div class="view-dots">
+            <span class="view-dot active" data-pdot="technics"></span>
+            <span class="view-dot" data-pdot="athletics"></span>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="panel" data-panel="nachrichten" aria-label="Nachrichten">
@@ -58,7 +140,22 @@
 
     <section class="panel" data-panel="karriere" aria-label="Karriere">
       <h1 class="page-title">Karriere</h1>
-      <div class="card"><p class="body-text">Dieser Bereich kommt bald.</p></div>
+
+      <div id="club-register" class="card" hidden>
+        <h2 class="card-title">Verein anmelden</h2>
+        <p class="body-text">Melde deinen Verein in der Vega League an. Du startest in der Antike.</p>
+        <form id="club-form" autocomplete="off" novalidate>
+          <label class="field"><span>Vereinsname</span><input name="name" type="text" maxlength="60" required></label>
+          <button class="primary" type="submit">Verein anmelden</button>
+          <p id="club-message" class="status" hidden></p>
+        </form>
+      </div>
+
+      <div id="club-registered" class="card" hidden>
+        <p class="kicker">Vega League</p>
+        <h2 id="club-name" class="card-title"></h2>
+        <p id="club-info" class="body-text"></p>
+      </div>
     </section>
 
     <section class="panel" data-panel="persoenlich" aria-label="Persönlich">

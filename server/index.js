@@ -13,10 +13,13 @@ const db = require('./db');
 const { validateField, FIELDS } = require('./validate');
 const { DISTRICTS, DISG_TEXT, WELCOME, publicQuestions, scoreAnswers, disgProfile } = require('./quiz');
 const { SKILLS, skillView } = require('./skills');
+const { MAX_PLAYERS, PLAYER_METRICS, ALL_METRIC_KEYS, POSITIONS, validatePlayer } = require('./players');
+const { PATHS, DIFFICULTY, bossesFor, parseBossId } = require('./bosses');
+
 
 const PORT = Number(process.env.PORT) || 3000;
 // Kennung dieses Builds. Unter http://localhost:3000/api/state sichtbar.
-const BUILD = 'vega-league-email-login';
+const BUILD = 'vega-league-bosses';
 // Auf Hosting-Diensten (Render setzt RENDER) von außen erreichbar, lokal nur auf dem eigenen Rechner.
 const HOST = process.env.HOST || (process.env.RENDER ? '0.0.0.0' : '127.0.0.1');
 const RP_NAME = 'ProClubs Internationale FootSim Association';
@@ -606,6 +609,7 @@ app.get('/api/me', (req, res) => {
     disg: user.district && answers ? disgProfile(answers) : null,
     personality: personalityView(user.personality),
     skills: skillsFor(user.id),
+    club: clubSummary(clubFor(user.id)),
   });
 });
 
@@ -669,6 +673,222 @@ app.post('/api/quiz/submit', (req, res) => {
     user.id
   );
   res.json({ ok: true, district: districtView(key) });
+});
+
+// Zeitalter eines Vereins. Start ist immer die Antike.
+// Die weiteren Namen trägt der Betreiber später ein.
+const ERAS = ['Antike'];
+
+function clubFor(userId) {
+  return db.prepare('SELECT * FROM clubs WHERE owner_id = ?').get(userId) || null;
+}
+
+function playerCount(clubId) {
+  return db.prepare('SELECT COUNT(*) AS n FROM players WHERE club_id = ?').get(clubId).n;
+}
+
+function eraName(index) {
+  return ERAS[index] || `Zeitalter ${index + 1}`;
+}
+
+function clubSummary(club) {
+  if (!club) return null;
+  return {
+    name: club.name,
+    era: eraName(club.era),
+    eraIndex: club.era,
+    playerCount: playerCount(club.id),
+    maxPlayers: MAX_PLAYERS,
+    activeRun: !!club.boss_id,
+  };
+}
+
+// Zustand des Anlaufs: Pfad, Hauptboss, Minibosse mit Status.
+function bossState(club, district) {
+  const state = {
+    path: club.path || null,
+    pathName: club.path ? PATHS[club.path].name : null,
+    bossId: club.boss_id || null,
+    bossName: null,
+    minibosses: [],
+    options: [],
+    miniWon: club.mini_won,
+  };
+  if (club.boss_id) {
+    const parsed = parseBossId(club.boss_id);
+    const boss = bossesFor(parsed.district, parsed.path)[parsed.n - 1];
+    state.bossName = boss.name;
+    state.minibosses = boss.minibosses.map((m) => ({
+      ...m,
+      status: m.index <= club.mini_won ? 'besiegt' : m.index === club.mini_won + 1 ? 'aktuell' : 'gesperrt',
+    }));
+  } else if (club.path && district) {
+    state.options = bossesFor(district, club.path).map((b) => ({ id: b.id, name: b.name }));
+  }
+  return state;
+}
+
+function playerXp(playerId) {
+  const rows = db.prepare('SELECT metric, xp FROM player_skills WHERE player_id = ?').all(playerId);
+  return Object.fromEntries(rows.map((r) => [r.metric, r.xp]));
+}
+
+// Spieler mit Kontaktdaten, Positionen und allen Metriken (XP, Level, Fortschritt).
+function playerDetail(p) {
+  const xp = playerXp(p.id);
+  return {
+    id: p.id,
+    fullName: p.full_name,
+    vegaId: p.vega_id,
+    birthYear: p.birth_year,
+    country: p.country,
+    email: p.email,
+    phone: p.phone,
+    positions: { main: p.pos_main, side1: p.pos_side1, side2: p.pos_side2 },
+    groups: Object.entries(PLAYER_METRICS).map(([key, g]) => ({
+      key,
+      name: g.name,
+      metrics: g.metrics.map((m) => skillView({ key: m.key, name: m.name, short: m.key }, xp[m.key] || 0)),
+    })),
+  };
+}
+
+app.post('/api/club', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  if (clubFor(user.id)) return res.status(409).json({ ok: false, error: 'Dein Verein ist bereits angemeldet.' });
+
+  const name = String(req.body?.name ?? '').replace(/\s+/g, ' ').trim();
+  if (name.length < 3 || name.length > 60) {
+    return res.status(400).json({ ok: false, error: 'Der Vereinsname braucht 3 bis 60 Zeichen.' });
+  }
+  db.prepare('INSERT INTO clubs (id, owner_id, name) VALUES (?, ?, ?)').run(crypto.randomUUID(), user.id, name);
+  res.json({ ok: true, club: clubSummary(clubFor(user.id)) });
+});
+
+app.get('/api/club', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const club = clubFor(user.id);
+  if (!club) return res.json({ ok: true, club: null, players: [] });
+  const players = db
+    .prepare('SELECT id, full_name, vega_id, birth_year, country, pos_main FROM players WHERE club_id = ? ORDER BY full_name')
+    .all(club.id)
+    .map((p) => ({ id: p.id, fullName: p.full_name, vegaId: p.vega_id, birthYear: p.birth_year, country: p.country, posMain: p.pos_main }));
+  res.json({ ok: true, club: clubSummary(club), players, boss: bossState(club, user.district) });
+});
+
+app.post('/api/club/players', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const club = clubFor(user.id);
+  if (!club) return res.status(400).json({ ok: false, error: 'Bitte zuerst deinen Verein anmelden.' });
+  if (playerCount(club.id) >= MAX_PLAYERS) {
+    return res.status(409).json({ ok: false, error: `Der Kader ist voll (maximal ${MAX_PLAYERS} Spieler).` });
+  }
+
+  const result = validatePlayer(req.body ?? {});
+  if (!result.ok) return res.status(400).json({ ok: false, error: result.error });
+  const v = result.value;
+
+  const taken = db.prepare('SELECT id FROM players WHERE vega_id = ?').get(v.vegaId);
+  if (taken) return res.status(409).json({ ok: false, error: 'Diese Vega ID ist bereits vergeben.' });
+
+  const id = crypto.randomUUID();
+  db.prepare(
+    `INSERT INTO players (id, club_id, full_name, vega_id, birth_year, country, email, phone, pos_main, pos_side1, pos_side2)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, club.id, v.fullName, v.vegaId, v.birthYear, v.country, v.email, v.phone, v.posMain, v.posSide1, v.posSide2);
+  res.json({ ok: true, player: playerDetail(db.prepare('SELECT * FROM players WHERE id = ?').get(id)) });
+});
+
+app.get('/api/club/players/:id', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const club = clubFor(user.id);
+  const player = club ? db.prepare('SELECT * FROM players WHERE id = ? AND club_id = ?').get(req.params.id, club.id) : null;
+  if (!player) return res.status(404).json({ ok: false, error: 'Spieler nicht gefunden.' });
+  res.json({ ok: true, player: playerDetail(player) });
+});
+
+// XP für eine Spieler-Metrik vergeben (nur Admin, vorerst die einzige XP-Quelle).
+app.post('/api/admin/players/grant', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ ok: false, error: 'Nur für den Admin.' });
+  const vegaId = String(req.body?.vegaId ?? '').trim();
+  const metric = String(req.body?.metric ?? '');
+  const xp = Number(req.body?.xp);
+  if (!ALL_METRIC_KEYS.includes(metric)) return res.status(400).json({ ok: false, error: 'Unbekannte Metrik.' });
+  if (!Number.isInteger(xp) || xp <= 0 || xp > 1000000) {
+    return res.status(400).json({ ok: false, error: 'XP muss eine ganze Zahl über 0 sein.' });
+  }
+  const player = db.prepare('SELECT * FROM players WHERE vega_id = ?').get(vegaId);
+  if (!player) return res.status(404).json({ ok: false, error: 'Keine Vega ID mit diesem Namen.' });
+
+  db.prepare(
+    `INSERT INTO player_skills (player_id, metric, xp) VALUES (?, ?, ?)
+     ON CONFLICT(player_id, metric) DO UPDATE SET xp = xp + excluded.xp`
+  ).run(player.id, metric, xp);
+  const detail = playerDetail(player);
+  res.json({ ok: true, player: detail });
+});
+
+// Pfad wählen (Admiral oder Kaiser). Nur wenn kein Anlauf läuft.
+app.post('/api/club/path', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const club = clubFor(user.id);
+  if (!club) return res.status(400).json({ ok: false, error: 'Bitte zuerst deinen Verein anmelden.' });
+  if (club.boss_id) return res.status(409).json({ ok: false, error: 'Der laufende Anlauf ist noch nicht beendet.' });
+  if (!user.district) return res.status(400).json({ ok: false, error: 'Bitte zuerst das Quiz machen, damit dein Ozean feststeht.' });
+  const path = String(req.body?.path ?? '');
+  if (!PATHS[path]) return res.status(400).json({ ok: false, error: 'Unbekannter Pfad.' });
+  db.prepare('UPDATE clubs SET path = ?, boss_id = NULL, mini_won = 0, main_won = 0 WHERE id = ?').run(path, club.id);
+  res.json({ ok: true, boss: bossState(clubFor(user.id), user.district) });
+});
+
+// Hauptboss wählen. Er muss zu Ozean und Pfad passen.
+app.post('/api/club/boss', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const club = clubFor(user.id);
+  if (!club) return res.status(400).json({ ok: false, error: 'Bitte zuerst deinen Verein anmelden.' });
+  if (!club.path) return res.status(400).json({ ok: false, error: 'Bitte zuerst einen Pfad wählen.' });
+  if (club.boss_id) return res.status(409).json({ ok: false, error: 'Der laufende Anlauf ist noch nicht beendet.' });
+  const parsed = parseBossId(req.body?.bossId);
+  if (!parsed || parsed.path !== club.path || parsed.district !== user.district) {
+    return res.status(400).json({ ok: false, error: 'Dieser Hauptboss passt nicht zu deinem Ozean oder Pfad.' });
+  }
+  db.prepare('UPDATE clubs SET boss_id = ? WHERE id = ?').run(String(req.body.bossId), club.id);
+  res.json({ ok: true, boss: bossState(clubFor(user.id), user.district) });
+});
+
+// Bosssieg eintragen (nur Admin): erst 3 Minibosse, dann der Hauptboss.
+app.post('/api/admin/club/win', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ ok: false, error: 'Nur für den Admin.' });
+  const email = String(req.body?.email ?? '').trim().toLowerCase();
+  const kind = String(req.body?.kind ?? '');
+  const club = db
+    .prepare('SELECT clubs.* FROM clubs JOIN users ON users.id = clubs.owner_id WHERE users.email = ?')
+    .get(email);
+  if (!club) return res.status(404).json({ ok: false, error: 'Kein Verein zu dieser E-Mail.' });
+  if (!club.boss_id) return res.status(409).json({ ok: false, error: 'Dieser Verein hat keinen Hauptboss gewählt.' });
+
+  if (kind === 'miniboss') {
+    if (club.mini_won >= DIFFICULTY.length) return res.status(409).json({ ok: false, error: 'Alle Minibosse sind schon besiegt.' });
+    db.prepare('UPDATE clubs SET mini_won = mini_won + 1 WHERE id = ?').run(club.id);
+  } else if (kind === 'main') {
+    if (club.mini_won < DIFFICULTY.length) {
+      return res.status(409).json({ ok: false, error: 'Erst alle drei Minibosse besiegen.' });
+    }
+    // Hauptboss besiegt: Zeitalter steigt, der Anlauf endet und der Pfad kann neu gewählt werden.
+    db.prepare(
+      'UPDATE clubs SET era = era + 1, path = NULL, boss_id = NULL, mini_won = 0, main_won = 0 WHERE id = ?'
+    ).run(club.id);
+  } else {
+    return res.status(400).json({ ok: false, error: 'Art unbekannt: miniboss oder main.' });
+  }
+  const updated = db.prepare('SELECT * FROM clubs WHERE id = ?').get(club.id);
+  res.json({ ok: true, club: clubSummary(updated), boss: bossState(updated, null) });
 });
 
 // ---------- Fehler ----------

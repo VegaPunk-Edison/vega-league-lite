@@ -84,6 +84,53 @@ if (!userColumns.includes('personality')) {
   }
 }
 
+// Verein eines Vereinsmanagers (ein Verein pro Konto).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS clubs (
+    id          TEXT PRIMARY KEY,
+    owner_id    TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS players (
+    id          TEXT PRIMARY KEY,
+    club_id     TEXT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+    full_name   TEXT NOT NULL,
+    vega_id     TEXT NOT NULL UNIQUE,
+    birth_year  INTEGER NOT NULL,
+    country     TEXT NOT NULL,
+    email       TEXT,
+    phone       TEXT,
+    pos_main    TEXT,
+    pos_side1   TEXT,
+    pos_side2   TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS player_skills (
+    player_id  TEXT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    metric     TEXT NOT NULL,
+    xp         INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (player_id, metric)
+  );
+`);
+
+// Anlauf eines Vereins: Pfad, Hauptboss, Siege, Zeitalter.
+{
+  const clubColumns = db.prepare('PRAGMA table_info(clubs)').all().map((c) => c.name);
+  const add = {
+    path: 'TEXT',
+    boss_id: 'TEXT',
+    mini_won: 'INTEGER NOT NULL DEFAULT 0',
+    main_won: 'INTEGER NOT NULL DEFAULT 0',
+    era: 'INTEGER NOT NULL DEFAULT 0',
+  };
+  for (const [col, type] of Object.entries(add)) {
+    if (!clubColumns.includes(col)) db.exec(`ALTER TABLE clubs ADD COLUMN ${col} ${type}`);
+  }
+}
+
 // Fähigkeiten (XP) pro Konto.
 db.exec(`
   CREATE TABLE IF NOT EXISTS skills (
