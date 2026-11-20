@@ -43,4 +43,31 @@ function skillView(skill, xp) {
   };
 }
 
-module.exports = { SKILLS, levelFromXp, skillView, xpToReach };
+// Rollen nach Gesamt-Level (Summe der Level aller Fähigkeiten).
+// Die Grenzen sind ein Vorschlag und lassen sich hier ändern.
+const ROLES = [
+  { name: 'Rookie', min: 0 },
+  { name: 'Semi Pro', min: 10 },
+  { name: 'Pro', min: 20 },
+  { name: 'Elite', min: 35 },
+  { name: 'Legend', min: 50 },
+  { name: 'GOAT', min: 75 },
+];
+
+// Rolle, Gesamt-Level und nächste Rolle aus einer Liste von Fähigkeiten.
+function roleFor(skills) {
+  const total = skills.reduce((sum, s) => sum + s.level, 0);
+  let index = 0;
+  ROLES.forEach((r, i) => {
+    if (total >= r.min) index = i;
+  });
+  const next = ROLES[index + 1] || null;
+  return {
+    name: ROLES[index].name,
+    totalLevel: total,
+    nextName: next ? next.name : null,
+    nextAt: next ? next.min : null,
+  };
+}
+
+module.exports = { SKILLS, ROLES, levelFromXp, skillView, xpToReach, roleFor };

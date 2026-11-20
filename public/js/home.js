@@ -289,6 +289,7 @@
     if (me.ok) {
       renderDisg(me.disg);
       renderSkills(me.skills);
+      renderRole(me.role);
     }
   }
 
@@ -376,6 +377,14 @@
     });
   }
 
+  function renderRole(role) {
+    if (!role) return;
+    $('role-name').textContent = role.name;
+    $('role-info').textContent = role.nextName
+      ? `Gesamt-Level ${role.totalLevel}. Nächste Rolle: ${role.nextName} ab Gesamt-Level ${role.nextAt}.`
+      : `Gesamt-Level ${role.totalLevel}. Du hast die höchste Rolle erreicht.`;
+  }
+
   function renderSkills(skills) {
     if (!skills) return;
     renderSkillChart(skills);
@@ -447,6 +456,9 @@
   // Zeitalter erscheint erst, wenn der Verein in der Vega League angemeldet ist.
   function renderEra(club) {
     const visible = !!(club && club.registered);
+    $('greeting-era').textContent = visible
+      ? `Willkommen in ${club.eraIntro}.`
+      : 'Willkommen in Babylonia.';
     $('era-card').hidden = !visible;
     if (!visible) return;
     $('era-name').textContent = club.era;
@@ -816,6 +828,7 @@
     $('subtab-name').textContent = firstName;
     renderDisg(me.disg);
     renderSkills(me.skills);
+    renderRole(me.role);
     setView(0);
     renderEra(me.club);
     renderClubStatus(me.club);

@@ -12,7 +12,7 @@ const {
 const db = require('./db');
 const { validateField, FIELDS } = require('./validate');
 const { DISTRICTS, DISG_TEXT, WELCOME, publicQuestions, scoreAnswers, disgProfile } = require('./quiz');
-const { SKILLS, skillView } = require('./skills');
+const { SKILLS, skillView, roleFor } = require('./skills');
 const { MAX_PLAYERS, PLAYER_METRICS, ALL_METRIC_KEYS, POSITIONS, validatePlayer } = require('./players');
 const { PATHS, DIFFICULTY, bossesFor, parseBossId } = require('./bosses');
 
@@ -609,6 +609,7 @@ app.get('/api/me', (req, res) => {
     disg: user.district && answers ? disgProfile(answers) : null,
     personality: personalityView(user.personality),
     skills: skillsFor(user.id),
+    role: roleFor(skillsFor(user.id)),
     club: clubSummary(clubFor(user.id)),
   });
 });
@@ -693,6 +694,12 @@ function eraName(index) {
   return ERAS[index] || `Zeitalter ${index + 1}`;
 }
 
+// Einleitung für „Willkommen in …“ mit passendem Artikel.
+const ERA_INTRO = ['der Antike'];
+function eraIntro(index) {
+  return ERA_INTRO[index] || eraName(index);
+}
+
 function clubSummary(club) {
   if (!club) return null;
   return {
@@ -702,6 +709,7 @@ function clubSummary(club) {
     playerCount: playerCount(club.id),
     maxPlayers: MAX_PLAYERS,
     registered: !!club.registered,
+    eraIntro: eraIntro(club.era),
     minPlayers: MIN_PLAYERS_FOR_REGISTRATION,
     activeRun: !!club.boss_id,
   };
