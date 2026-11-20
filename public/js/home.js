@@ -55,12 +55,20 @@
     return { status: res.status, ...data };
   }
 
+  // Vor dem Quiz nur die Willkommenskarte. Danach Begrüßung, Zeitalter und Rolle.
+  function setQuizMode(done) {
+    $('greeting-card').hidden = !done;
+    $('role-card').hidden = !done;
+    if (!done) $('era-card').hidden = true;
+  }
+
   function showOzean(district) {
     $('district-name').textContent = district.name;
     $('district-desc').textContent = district.desc;
     $('district').hidden = false;
     $('welcome').hidden = true;
     $('quiz').hidden = true;
+    setQuizMode(true);
   }
 
   // ---------- Willkommen und Quiz ----------
@@ -123,7 +131,6 @@
       $('progress-bar').style.width = '100%';
       const result = await post('/api/quiz/submit', { answers });
       if (result.ok) {
-        $('greeting').textContent = 'Deine Zuordnung ist abgeschlossen.';
         showOzean(result.district);
         await refreshDisg();
         return;
@@ -838,6 +845,7 @@
     if (me.district) {
       showOzean(me.district);
     } else {
+      setQuizMode(false);
       await showWelcome();
     }
   }
