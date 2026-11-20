@@ -104,17 +104,23 @@
             <h2 id="pd-name" class="card-title"></h2>
             <p id="pd-meta" class="body-text"></p>
             <p id="pd-positions" class="body-text"></p>
-            <p class="kicker" id="pd-view-name">Technics</p>
-            <div class="player-split">
-              <ul id="pd-metrics" class="metric-list"></ul>
+            <nav class="subtabs subtabs-2" aria-label="Ansicht des Spielers">
+              <button class="subtab active" data-pview="chart" type="button">Spider Chart</button>
+              <button class="subtab" data-pview="levels" type="button">Level-Leiste</button>
+            </nav>
+            <div data-pview-panel="chart">
+              <p class="kicker" id="pd-view-name">Technics</p>
               <div class="mini-wrap">
                 <div id="pd-chart" class="mini-chart"></div>
               </div>
+              <p class="swipe-hint">Wische über das Diagramm, um zwischen Technics und PIFA E-Sport Athletics zu wechseln.</p>
+              <div class="view-dots">
+                <span class="view-dot active" data-pdot="technics"></span>
+                <span class="view-dot" data-pdot="athletics"></span>
+              </div>
             </div>
-            <p class="swipe-hint">Wische über das Diagramm, um zwischen Technics und PIFA E-Sport Athletics zu wechseln.</p>
-            <div class="view-dots">
-              <span class="view-dot active" data-pdot="technics"></span>
-              <span class="view-dot" data-pdot="athletics"></span>
+            <div data-pview-panel="levels" hidden>
+              <div id="pd-levels"></div>
             </div>
           </div>
         </div>

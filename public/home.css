@@ -586,3 +586,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .timeline-station.st-main svg { width: 18px; height: 18px; display: block; }
 .timeline-station.st-main { width: 34px; height: 34px; }
 .timeline-station.st-main svg { width: 22px; height: 22px; }
+
+/* Spieler: Level-Leiste als eigene Ansicht */
+.subtabs-2 { grid-template-columns: 1fr 1fr; }
+.level-item { padding: 10px 0; }
+.level-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 15px; }
+.level-top strong { color: var(--navy); }

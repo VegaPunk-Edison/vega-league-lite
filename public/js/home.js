@@ -679,50 +679,64 @@
     const side = [pos.side1, pos.side2].filter(Boolean).join(', ');
     $('pd-positions').textContent = `Hauptposition: ${pos.main ? POSITION_NAMES[pos.main] : '–'}` + (side ? ` · Nebenpositionen: ${side}` : '');
     renderPlayerGroup();
+    renderPlayerLevels();
+    showPView('chart');
     $('player-detail').scrollIntoView({ block: 'start' });
   }
 
   function renderPlayerGroup() {
     const group = currentPlayer.groups[groupIndex];
     $('pd-view-name').textContent = group.name;
-    const list = $('pd-metrics');
-    list.innerHTML = '';
-    group.metrics.forEach((m) => {
-      const li = document.createElement('li');
-      li.className = 'metric-item';
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'metric-row';
-      const name = document.createElement('span');
-      name.className = 'metric-name';
-      name.textContent = m.name;
-      const lvl = document.createElement('span');
-      lvl.className = 'metric-lvl';
-      lvl.textContent = `L ${m.level}`;
-      row.append(name, lvl);
-      const detail = document.createElement('div');
-      detail.className = 'metric-detail';
-      detail.hidden = true;
-      const text = document.createElement('div');
-      text.className = 'skill-xp';
-      text.textContent = `Level ${m.level} · ${m.xpIntoLevel} / ${m.xpForNext} XP · ${m.xp} XP gesamt`;
-      const bar = document.createElement('div');
-      bar.className = 'skill-bar';
-      const fill = document.createElement('span');
-      fill.style.width = `${m.progress}%`;
-      bar.appendChild(fill);
-      detail.append(text, bar);
-      row.addEventListener('click', () => {
-        detail.hidden = !detail.hidden;
-      });
-      li.append(row, detail);
-      list.appendChild(li);
-    });
     drawRadar($('pd-chart'), group.metrics.map((m) => ({ label: m.name, level: m.level })));
     document.querySelectorAll('[data-pdot]').forEach((d) => {
       d.classList.toggle('active', d.dataset.pdot === GROUP_KEYS[groupIndex]);
     });
   }
+
+  // Level-Leiste: alle Fähigkeiten mit Level und Fortschritt, ohne Antippen.
+  function renderPlayerLevels() {
+    const box = $('pd-levels');
+    box.innerHTML = '';
+    currentPlayer.groups.forEach((g) => {
+      const heading = document.createElement('p');
+      heading.className = 'kicker';
+      heading.textContent = g.name;
+      box.appendChild(heading);
+      const list = document.createElement('ul');
+      list.className = 'metric-list';
+      g.metrics.forEach((m) => {
+        const li = document.createElement('li');
+        li.className = 'metric-item level-item';
+        const top = document.createElement('div');
+        top.className = 'level-top';
+        const name = document.createElement('span');
+        name.textContent = m.name;
+        const lvl = document.createElement('strong');
+        lvl.textContent = `Level ${m.level}`;
+        top.append(name, lvl);
+        const bar = document.createElement('div');
+        bar.className = 'skill-bar';
+        const fill = document.createElement('span');
+        fill.style.width = `${m.progress}%`;
+        bar.appendChild(fill);
+        const info = document.createElement('div');
+        info.className = 'skill-xp';
+        info.textContent = `${m.xpIntoLevel} / ${m.xpForNext} XP · ${m.xp} XP gesamt`;
+        li.append(top, bar, info);
+        list.appendChild(li);
+      });
+      box.appendChild(list);
+    });
+  }
+
+  function showPView(name) {
+    document.querySelectorAll('[data-pview]').forEach((b) => b.classList.toggle('active', b.dataset.pview === name));
+    document.querySelectorAll('[data-pview-panel]').forEach((p) => {
+      p.hidden = p.dataset.pviewPanel !== name;
+    });
+  }
+
+  document.querySelectorAll('[data-pview]').forEach((b) => b.addEventListener('click', () => showPView(b.dataset.pview)));
 
   (function bindPlayerSwipe() {
     const area = $('pd-chart');
