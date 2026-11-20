@@ -1085,7 +1085,7 @@
     await loadClubDetail();
     if (logoError) {
       showVSub('einstellungen');
-      showSettingsMessage(`Verein angelegt. Das Logo konnte nicht gespeichert werden: ${logoError} Du kannst es unter Einstellungen erneut hochladen.`, false);
+      showSettingsMessage(`Verein angelegt. Das Logo konnte nicht gespeichert werden: ${logoError} Du kannst es unter Vereinstellung erneut hochladen.`, false);
     } else {
       showVSub('kader');
     }
