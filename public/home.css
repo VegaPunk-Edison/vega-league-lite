@@ -470,7 +470,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Wappen-Platzhalter (später: eigene Bilder pro Ozean) */
 .crest { width: 30px; height: 30px; flex: 0 0 auto; }
 .crest svg { width: 100%; height: 100%; display: block; }
-.crest-large { width: 110px; height: 110px; margin: 6px 0 10px; }
+.crest-large { width: 30px; height: 30px; margin: 0; }
 .crest-large svg { width: 100%; height: 100%; display: block; }
 
 /* Verein: Kopf, Vereinshaus-Kacheln */
@@ -622,3 +622,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Ozean-Wappen als Bild */
 .crest img, .crest-large img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* Wappen in der Info-Karte, über dem Ozean-Text */
+.info-crest { margin: 0 0 8px; }

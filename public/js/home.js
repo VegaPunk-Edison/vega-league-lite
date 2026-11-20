@@ -129,6 +129,9 @@
 
   function showOzean(district) {
     $('info-ozean').textContent = `Dein Ozean: ${district.name}. ${district.desc}`;
+    const infoCrest = $('info-crest');
+    infoCrest.innerHTML = '';
+    infoCrest.appendChild(crestSvg(district));
     renderCrests(district);
     $('welcome').hidden = true;
     $('quiz').hidden = true;
