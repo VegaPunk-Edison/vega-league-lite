@@ -26,15 +26,15 @@
   // ---------- Unter-Tabs im Tab Persönlich ----------
 
   function showSubtab(name) {
-    document.querySelectorAll('.subtab').forEach((b) => {
+    document.querySelectorAll('[data-subtab]').forEach((b) => {
       b.classList.toggle('active', b.dataset.subtab === name);
     });
-    document.querySelectorAll('.subpanel').forEach((p) => {
+    document.querySelectorAll('[data-subpanel]').forEach((p) => {
       p.classList.toggle('active', p.dataset.subpanel === name);
     });
   }
 
-  document.querySelectorAll('.subtab').forEach((b) => {
+  document.querySelectorAll('[data-subtab]').forEach((b) => {
     b.addEventListener('click', () => showSubtab(b.dataset.subtab));
   });
 
