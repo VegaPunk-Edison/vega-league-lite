@@ -543,8 +543,32 @@
       b.hidden = !hasClubs;
     });
     renderEra();
+    renderUnlockHint();
     return myClubs;
   }
+
+  // Hinweis, sobald ein Verein die Voraussetzungen für die Vega League erfüllt.
+  function renderUnlockHint() {
+    const ready = myClubs.filter((c) => c.canUnlock);
+    $('unlock-hint').hidden = ready.length === 0;
+    if (ready.length) {
+      const names = ready.map((c) => c.name).join(' und ');
+      $('unlock-hint-text').textContent = ready.length === 1
+        ? `${names} kann sich jetzt in der Vega League anmelden.`
+        : `${names} können sich jetzt in der Vega League anmelden.`;
+      $('unlock-hint-go').dataset.clubId = ready[0].id;
+    }
+    document.querySelectorAll('.notice-dot').forEach((d) => { d.hidden = ready.length === 0; });
+  }
+
+  $('unlock-hint-go').addEventListener('click', async () => {
+    const id = $('unlock-hint-go').dataset.clubId;
+    if (!id) return;
+    activeClubId = id;
+    showTab('karriere');
+    showKSub('vega');
+    await loadClubDetail();
+  });
 
   function showVSub(name) {
     document.querySelectorAll('[data-vsub]').forEach((b) => b.classList.toggle('active', b.dataset.vsub === name));

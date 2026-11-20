@@ -592,3 +592,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .level-item { padding: 10px 0; }
 .level-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 15px; }
 .level-top strong { color: var(--navy); }
+
+/* Hinweis: Verein kann sich in der Vega League anmelden */
+.notice-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); margin-left: 6px; vertical-align: middle; }
+.notice-dot[hidden] { display: none; }
