@@ -681,7 +681,7 @@ app.post('/api/quiz/submit', (req, res) => {
 
 // Vereine, Kader, Formation, Freischalten, Anlauf und Tabelle.
 // Ein VM hat bis zu MAX_CLUBS Vereine.
-const ERAS = ['Antike'];
+const ERAS = ['Antike', 'Renaissance', 'Moderne'];
 const MAX_CLUBS = 3;
 const MIN_PLAYERS_FOR_UNLOCK = 11; // "Jetzt freischalten" (Vega League)
 const MIN_PLAYERS_FOR_FORMATION = 5;

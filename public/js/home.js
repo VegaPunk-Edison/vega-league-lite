@@ -64,7 +64,7 @@
     if (!myName) return;
     // Sobald das Quiz fertig ist, gilt das Zeitalter Antike (unabhängig von der Anmeldung).
     const eraName = myEraName || 'Antike';
-    const ERA_WORDING = { Antike: 'der Antike' };
+    const ERA_WORDING = { Antike: 'der Antike', Renaissance: 'der Renaissance', Moderne: 'der Moderne' };
     const era = ERA_WORDING[eraName] || eraName;
     const role = myRoleName || 'Rookie';
     $('greeting').textContent = `Willkommen in ${era}, ${role}.`;
