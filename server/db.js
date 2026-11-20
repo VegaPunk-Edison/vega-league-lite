@@ -88,7 +88,7 @@ if (!userColumns.includes('personality')) {
 db.exec(`
   CREATE TABLE IF NOT EXISTS clubs (
     id          TEXT PRIMARY KEY,
-    owner_id    TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    owner_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name        TEXT NOT NULL,
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -126,9 +126,47 @@ db.exec(`
     main_won: 'INTEGER NOT NULL DEFAULT 0',
     era: 'INTEGER NOT NULL DEFAULT 0',
     registered: 'INTEGER NOT NULL DEFAULT 0',
+    founded: 'INTEGER',
+    logo: 'TEXT',
+    formation: 'TEXT',
+    slots: 'TEXT',
   };
   for (const [col, type] of Object.entries(add)) {
     if (!clubColumns.includes(col)) db.exec(`ALTER TABLE clubs ADD COLUMN ${col} ${type}`);
+  }
+}
+
+// Ältere Datenbanken: owner_id war eindeutig (nur ein Verein pro Konto). Das wird aufgehoben,
+// damit ein VM bis zu drei Vereine haben kann. Die Daten bleiben erhalten.
+{
+  const info = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'clubs'").get();
+  if (info && /owner_id\s+TEXT\s+NOT\s+NULL\s+UNIQUE/i.test(info.sql)) {
+    db.exec('PRAGMA foreign_keys = OFF;');
+    db.exec('BEGIN');
+    db.exec(`
+      CREATE TABLE clubs_new (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        path TEXT,
+        boss_id TEXT,
+        mini_won INTEGER NOT NULL DEFAULT 0,
+        main_won INTEGER NOT NULL DEFAULT 0,
+        era INTEGER NOT NULL DEFAULT 0,
+        registered INTEGER NOT NULL DEFAULT 0,
+        founded INTEGER,
+        logo TEXT,
+        formation TEXT,
+        slots TEXT
+      );
+      INSERT INTO clubs_new (id, owner_id, name, created_at, path, boss_id, mini_won, main_won, era, registered, founded, logo, formation, slots)
+        SELECT id, owner_id, name, created_at, path, boss_id, mini_won, main_won, era, registered, founded, logo, formation, slots FROM clubs;
+      DROP TABLE clubs;
+      ALTER TABLE clubs_new RENAME TO clubs;
+    `);
+    db.exec('COMMIT');
+    db.exec('PRAGMA foreign_keys = ON;');
   }
 }
 

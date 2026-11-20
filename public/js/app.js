@@ -574,7 +574,8 @@
 
   // Bosssieg eintragen: E-Mail des Vereins, dann Miniboss (1) oder Hauptboss (2).
   async function adminBossWin() {
-    const email = await Term.input({ prompt: 'E-MAIL>', placeholder: 'E-Mail des Vereins', inputmode: 'email', maxLength: 254, autocomplete: 'off' });
+    const email = await Term.input({ prompt: 'E-MAIL>', placeholder: 'E-Mail des Vereinsmanagers', inputmode: 'email', maxLength: 254, autocomplete: 'off' });
+    const clubName = await Term.input({ prompt: 'VEREIN>', placeholder: 'Name des Vereins', maxLength: 60, autocomplete: 'off' });
     const kind = await Term.input({ prompt: 'ART>', placeholder: '1 = Miniboss, 2 = Hauptboss', inputmode: 'numeric', maxLength: 1, autocomplete: 'off' });
     Term.clearStage();
     const type = kind.trim() === '1' ? 'miniboss' : kind.trim() === '2' ? 'main' : null;
@@ -583,7 +584,7 @@
       await Term.sleep(1500);
       return mainMenu();
     }
-    const res = await apiPost('/api/admin/club/win', { email: email.trim(), kind: type });
+    const res = await apiPost('/api/admin/clubs/win', { email: email.trim(), clubName: clubName.trim(), kind: type });
     if (res.ok) {
       const label = type === 'main' ? `Hauptboss besiegt, jetzt ${res.club.era}` : `Miniboss besiegt (${res.boss.miniWon} / 3)`;
       Term.print(`[ OK ] ${res.club.name}: ${label}.`, 'ok');

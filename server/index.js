@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const express = require('express');
 const {
@@ -10,9 +11,10 @@ const {
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
 const db = require('./db');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const { validateField, FIELDS } = require('./validate');
 const { DISTRICTS, DISG_TEXT, WELCOME, publicQuestions, scoreAnswers, disgProfile } = require('./quiz');
-const { SKILLS, skillView, roleFor } = require('./skills');
+const { SKILLS, skillView, roleFor, levelFromXp } = require('./skills');
 const { MAX_PLAYERS, PLAYER_METRICS, ALL_METRIC_KEYS, POSITIONS, validatePlayer } = require('./players');
 const { PATHS, DIFFICULTY, bossesFor, parseBossId } = require('./bosses');
 
@@ -610,7 +612,8 @@ app.get('/api/me', (req, res) => {
     personality: personalityView(user.personality),
     skills: skillsFor(user.id),
     role: roleFor(skillsFor(user.id)),
-    club: clubSummary(clubFor(user.id)),
+    clubs: clubsFor(user.id).map(clubSummary),
+    eraNow: eraName(Math.max(0, ...clubsFor(user.id).map((c) => c.era))),
   });
 });
 
@@ -676,42 +679,66 @@ app.post('/api/quiz/submit', (req, res) => {
   res.json({ ok: true, district: districtView(key) });
 });
 
-// Zeitalter eines Vereins. Start ist immer die Antike.
-// Die weiteren Namen trägt der Betreiber später ein.
+// Vereine, Kader, Formation, Freischalten, Anlauf und Tabelle.
+// Ein VM hat bis zu MAX_CLUBS Vereine.
 const ERAS = ['Antike'];
-// Mindestanzahl Spieler, damit ein Verein in der Vega League angemeldet werden kann.
-const MIN_PLAYERS_FOR_REGISTRATION = 11;
+const MAX_CLUBS = 3;
+const MIN_PLAYERS_FOR_UNLOCK = 11; // "Jetzt freischalten" (Vega League)
+const MIN_PLAYERS_FOR_FORMATION = 5;
+const LOGO_DIR = path.join(DATA_DIR, 'logos');
+fs.mkdirSync(LOGO_DIR, { recursive: true });
+app.use('/logos', express.static(LOGO_DIR, { etag: false, lastModified: false, setHeaders: (res) => res.setHeader('Cache-Control', 'no-store') }));
 
-function clubFor(userId) {
-  return db.prepare('SELECT * FROM clubs WHERE owner_id = ?').get(userId) || null;
+// Formationen: Zeilen von hinten nach vorne. Die Reihenfolge der Positionen ergibt die Slots 0 bis 10.
+const FORMATIONS = {
+  '4-4-2': [['TW'], ['LV', 'IV', 'IV', 'RV'], ['LM', 'ZM', 'ZM', 'RM'], ['ST', 'ST']],
+  '4-3-3': [['TW'], ['LV', 'IV', 'IV', 'RV'], ['ZM', 'DM', 'ZM'], ['LA', 'ST', 'RA']],
+  '4-2-3-1': [['TW'], ['LV', 'IV', 'IV', 'RV'], ['DM', 'DM'], ['LM', 'OM', 'RM'], ['ST']],
+  '3-5-2': [['TW'], ['IV', 'IV', 'IV'], ['LM', 'ZM', 'DM', 'ZM', 'RM'], ['ST', 'ST']],
+};
+const LOGO_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+
+function eraName(index) {
+  return ERAS[index] || `Zeitalter ${index + 1}`;
+}
+
+function clubsFor(userId) {
+  return db.prepare('SELECT * FROM clubs WHERE owner_id = ? ORDER BY created_at, rowid').all(userId);
+}
+
+function ownedClub(userId, clubId) {
+  return db.prepare('SELECT * FROM clubs WHERE id = ? AND owner_id = ?').get(clubId, userId) || null;
 }
 
 function playerCount(clubId) {
   return db.prepare('SELECT COUNT(*) AS n FROM players WHERE club_id = ?').get(clubId).n;
 }
 
-function eraName(index) {
-  return ERAS[index] || `Zeitalter ${index + 1}`;
-}
-
-// Einleitung für „Willkommen in …“ mit passendem Artikel.
-const ERA_INTRO = ['der Antike'];
-function eraIntro(index) {
-  return ERA_INTRO[index] || eraName(index);
+function ownerOf(club) {
+  return db.prepare('SELECT id, name, district FROM users WHERE id = ?').get(club.owner_id);
 }
 
 function clubSummary(club) {
-  if (!club) return null;
+  const owner = ownerOf(club);
+  const count = playerCount(club.id);
   return {
+    id: club.id,
     name: club.name,
+    founded: club.founded,
+    logo: club.logo ? `/logos/${club.logo}` : null,
+    manager: owner ? owner.name : '',
+    members: count,
+    playerCount: count,
+    maxPlayers: MAX_PLAYERS,
     era: eraName(club.era),
     eraIndex: club.era,
-    playerCount: playerCount(club.id),
-    maxPlayers: MAX_PLAYERS,
     registered: !!club.registered,
-    eraIntro: eraIntro(club.era),
-    minPlayers: MIN_PLAYERS_FOR_REGISTRATION,
+    path: club.path || null,
+    pathName: club.path ? PATHS[club.path].name : null,
     activeRun: !!club.boss_id,
+    district: owner ? owner.district : null,
+    canUnlock: !club.registered && count >= MIN_PLAYERS_FOR_UNLOCK,
+    minPlayers: MIN_PLAYERS_FOR_UNLOCK,
   };
 }
 
@@ -725,6 +752,7 @@ function bossState(club, district) {
     minibosses: [],
     options: [],
     miniWon: club.mini_won,
+    mainWon: !!club.main_won,
   };
   if (club.boss_id) {
     const parsed = parseBossId(club.boss_id);
@@ -745,7 +773,27 @@ function playerXp(playerId) {
   return Object.fromEntries(rows.map((r) => [r.metric, r.xp]));
 }
 
-// Spieler mit Kontaktdaten, Positionen und allen Metriken (XP, Level, Fortschritt).
+// Summe der Level aller Metriken eines Spielers.
+function playerLevelSum(playerId) {
+  const xp = playerXp(playerId);
+  return ALL_METRIC_KEYS.reduce((sum, key) => sum + levelFromXp(xp[key] || 0), 0);
+}
+
+// Summe der Level der sieben VM-Fähigkeiten eines Kontos.
+function vmLevelSum(userId) {
+  const rows = db.prepare('SELECT skill, xp FROM skills WHERE user_id = ?').all(userId);
+  const xpByKey = Object.fromEntries(rows.map((r) => [r.skill, r.xp]));
+  return SKILLS.reduce((sum, s) => sum + levelFromXp(xpByKey[s.key] || 0), 0);
+}
+
+// Platzierungswert eines Vereins: Summe der Spieler-Level plus Gesamt-Level des VM.
+function clubScore(club) {
+  const players = db.prepare('SELECT id FROM players WHERE club_id = ?').all(club.id);
+  const playerSum = players.reduce((sum, p) => sum + playerLevelSum(p.id), 0);
+  return playerSum + vmLevelSum(club.owner_id);
+}
+
+// Spieler mit Kontaktdaten, Positionen und allen Metriken.
 function playerDetail(p) {
   const xp = playerXp(p.id);
   return {
@@ -765,47 +813,100 @@ function playerDetail(p) {
   };
 }
 
-app.post('/api/club', (req, res) => {
+// Verein anlegen (bis zu drei pro VM).
+app.post('/api/clubs', (req, res) => {
   const user = currentUser(req);
   if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
-  if (clubFor(user.id)) return res.status(409).json({ ok: false, error: 'Dein Verein ist bereits angemeldet.' });
-
+  if (clubsFor(user.id).length >= MAX_CLUBS) {
+    return res.status(409).json({ ok: false, error: `Du kannst höchstens ${MAX_CLUBS} Vereine anlegen.` });
+  }
   const name = String(req.body?.name ?? '').replace(/\s+/g, ' ').trim();
   if (name.length < 3 || name.length > 60) {
     return res.status(400).json({ ok: false, error: 'Der Vereinsname braucht 3 bis 60 Zeichen.' });
   }
-  db.prepare('INSERT INTO clubs (id, owner_id, name) VALUES (?, ?, ?)').run(crypto.randomUUID(), user.id, name);
-  res.json({ ok: true, club: clubSummary(clubFor(user.id)) });
+  const founded = Number(req.body?.founded);
+  const thisYear = new Date().getFullYear();
+  if (!Number.isInteger(founded) || founded < 1900 || founded > thisYear) {
+    return res.status(400).json({ ok: false, error: `Bitte ein gültiges Gründungsjahr eingeben (1900 bis ${thisYear}).` });
+  }
+  const id = crypto.randomUUID();
+  db.prepare('INSERT INTO clubs (id, owner_id, name, founded) VALUES (?, ?, ?, ?)').run(id, user.id, name, founded);
+  res.json({ ok: true, club: clubSummary(ownedClub(user.id, id)) });
 });
 
-app.get('/api/club', (req, res) => {
+// Alle eigenen Vereine (Vereinshaus).
+app.get('/api/clubs', (req, res) => {
   const user = currentUser(req);
   if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
-  const club = clubFor(user.id);
-  if (!club) return res.json({ ok: true, club: null, players: [] });
+  res.json({ ok: true, maxClubs: MAX_CLUBS, clubs: clubsFor(user.id).map(clubSummary) });
+});
+
+// Logo hochladen (optional, png, jpg oder webp, bis 1 MB).
+app.post(
+  '/api/clubs/:id/logo',
+  express.raw({ type: Object.keys(LOGO_TYPES), limit: '1mb' }),
+  (req, res) => {
+    const user = currentUser(req);
+    if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+    const club = ownedClub(user.id, req.params.id);
+    if (!club) return res.status(404).json({ ok: false, error: 'Verein nicht gefunden.' });
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      return res.status(400).json({ ok: false, error: 'Keine Bilddatei empfangen.' });
+    }
+    const ext = LOGO_TYPES[req.headers['content-type']];
+    const file = `${club.id}.${ext}`;
+    if (club.logo && club.logo !== file) fs.rmSync(path.join(LOGO_DIR, club.logo), { force: true });
+    fs.writeFileSync(path.join(LOGO_DIR, file), req.body);
+    db.prepare('UPDATE clubs SET logo = ? WHERE id = ?').run(file, club.id);
+    res.json({ ok: true, club: clubSummary(ownedClub(user.id, club.id)) });
+  }
+);
+
+// Ein Verein mit Kader, Formation, Anlauf und Freischaltung.
+app.get('/api/clubs/:id', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const club = ownedClub(user.id, req.params.id);
+  if (!club) return res.status(404).json({ ok: false, error: 'Verein nicht gefunden.' });
   const players = db
     .prepare('SELECT id, full_name, vega_id, birth_year, country, pos_main FROM players WHERE club_id = ? ORDER BY full_name')
     .all(club.id)
-    .map((p) => ({ id: p.id, fullName: p.full_name, vegaId: p.vega_id, birthYear: p.birth_year, country: p.country, posMain: p.pos_main }));
-  res.json({ ok: true, club: clubSummary(club), players, boss: bossState(club, user.district) });
+    .map((p) => ({
+      id: p.id,
+      fullName: p.full_name,
+      vegaId: p.vega_id,
+      birthYear: p.birth_year,
+      country: p.country,
+      posMain: p.pos_main,
+      level: playerLevelSum(p.id),
+    }));
+  res.json({
+    ok: true,
+    club: clubSummary(club),
+    players,
+    formation: club.formation || null,
+    slots: club.slots ? JSON.parse(club.slots) : {},
+    formations: Object.entries(FORMATIONS).map(([name, rows]) => ({ name, rows })),
+    minPlayersForFormation: MIN_PLAYERS_FOR_FORMATION,
+    boss: bossState(club, user.district),
+  });
 });
 
-app.post('/api/club/players', (req, res) => {
+// Spieler anlegen (bis zu 24 pro Verein).
+app.post('/api/clubs/:id/players', (req, res) => {
   const user = currentUser(req);
   if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
-  const club = clubFor(user.id);
-  if (!club) return res.status(400).json({ ok: false, error: 'Bitte zuerst deinen Verein anmelden.' });
+  const club = ownedClub(user.id, req.params.id);
+  if (!club) return res.status(404).json({ ok: false, error: 'Verein nicht gefunden.' });
   if (playerCount(club.id) >= MAX_PLAYERS) {
     return res.status(409).json({ ok: false, error: `Der Kader ist voll (maximal ${MAX_PLAYERS} Spieler).` });
   }
-
   const result = validatePlayer(req.body ?? {});
   if (!result.ok) return res.status(400).json({ ok: false, error: result.error });
   const v = result.value;
-
-  const taken = db.prepare('SELECT id FROM players WHERE vega_id = ?').get(v.vegaId);
-  if (taken) return res.status(409).json({ ok: false, error: 'Diese Vega ID ist bereits vergeben.' });
-
+  if (db.prepare('SELECT id FROM players WHERE vega_id = ?').get(v.vegaId)) {
+    return res.status(409).json({ ok: false, error: 'Diese Vega ID ist bereits vergeben.' });
+  }
   const id = crypto.randomUUID();
   db.prepare(
     `INSERT INTO players (id, club_id, full_name, vega_id, birth_year, country, email, phone, pos_main, pos_side1, pos_side2)
@@ -814,76 +915,83 @@ app.post('/api/club/players', (req, res) => {
   res.json({ ok: true, player: playerDetail(db.prepare('SELECT * FROM players WHERE id = ?').get(id)) });
 });
 
-app.get('/api/club/players/:id', (req, res) => {
+// Spieler-Detail (nur eigene Spieler).
+app.get('/api/clubs/:id/players/:pid', (req, res) => {
   const user = currentUser(req);
   if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
-  const club = clubFor(user.id);
-  const player = club ? db.prepare('SELECT * FROM players WHERE id = ? AND club_id = ?').get(req.params.id, club.id) : null;
+  const club = ownedClub(user.id, req.params.id);
+  const player = club ? db.prepare('SELECT * FROM players WHERE id = ? AND club_id = ?').get(req.params.pid, club.id) : null;
   if (!player) return res.status(404).json({ ok: false, error: 'Spieler nicht gefunden.' });
   res.json({ ok: true, player: playerDetail(player) });
 });
 
-// XP für eine Spieler-Metrik vergeben (nur Admin, vorerst die einzige XP-Quelle).
-app.post('/api/admin/players/grant', (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ ok: false, error: 'Nur für den Admin.' });
-  const vegaId = String(req.body?.vegaId ?? '').trim();
-  const metric = String(req.body?.metric ?? '');
-  const xp = Number(req.body?.xp);
-  if (!ALL_METRIC_KEYS.includes(metric)) return res.status(400).json({ ok: false, error: 'Unbekannte Metrik.' });
-  if (!Number.isInteger(xp) || xp <= 0 || xp > 1000000) {
-    return res.status(400).json({ ok: false, error: 'XP muss eine ganze Zahl über 0 sein.' });
-  }
-  const player = db.prepare('SELECT * FROM players WHERE vega_id = ?').get(vegaId);
-  if (!player) return res.status(404).json({ ok: false, error: 'Keine Vega ID mit diesem Namen.' });
-
-  db.prepare(
-    `INSERT INTO player_skills (player_id, metric, xp) VALUES (?, ?, ?)
-     ON CONFLICT(player_id, metric) DO UPDATE SET xp = xp + excluded.xp`
-  ).run(player.id, metric, xp);
-  const detail = playerDetail(player);
-  res.json({ ok: true, player: detail });
-});
-
-// In die Vega League anmelden. Erst ab 11 Spielern im Kader.
-app.post('/api/club/register', (req, res) => {
+// Formation und Zuordnung der Spieler auf die Positionen (ab 5 Spielern).
+app.post('/api/clubs/:id/formation', (req, res) => {
   const user = currentUser(req);
   if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
-  const club = clubFor(user.id);
-  if (!club) return res.status(400).json({ ok: false, error: 'Bitte zuerst deinen Verein anlegen.' });
-  if (club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist bereits angemeldet.' });
+  const club = ownedClub(user.id, req.params.id);
+  if (!club) return res.status(404).json({ ok: false, error: 'Verein nicht gefunden.' });
+  if (playerCount(club.id) < MIN_PLAYERS_FOR_FORMATION) {
+    return res.status(400).json({ ok: false, error: `Eine Formation gibt es ab ${MIN_PLAYERS_FOR_FORMATION} Spielern.` });
+  }
+  const formation = String(req.body?.formation ?? '');
+  if (!FORMATIONS[formation]) return res.status(400).json({ ok: false, error: 'Unbekannte Formation.' });
+  const slotCount = FORMATIONS[formation].flat().length;
+  const given = req.body?.slots ?? {};
+  const clean = {};
+  const used = new Set();
+  for (let i = 0; i < slotCount; i++) {
+    const pid = given[i] ?? null;
+    if (!pid) {
+      clean[i] = null;
+      continue;
+    }
+    const owns = db.prepare('SELECT id FROM players WHERE id = ? AND club_id = ?').get(String(pid), club.id);
+    if (!owns || used.has(pid)) return res.status(400).json({ ok: false, error: 'Ungültige Spielerzuordnung.' });
+    used.add(pid);
+    clean[i] = String(pid);
+  }
+  db.prepare('UPDATE clubs SET formation = ?, slots = ? WHERE id = ?').run(formation, JSON.stringify(clean), club.id);
+  res.json({ ok: true, formation, slots: clean });
+});
+
+// Verein in der Vega League freischalten (ab 11 Spielern).
+app.post('/api/clubs/:id/unlock', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const club = ownedClub(user.id, req.params.id);
+  if (!club) return res.status(404).json({ ok: false, error: 'Verein nicht gefunden.' });
+  if (club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist bereits freigeschaltet.' });
   const count = playerCount(club.id);
-  if (count < MIN_PLAYERS_FOR_REGISTRATION) {
-    return res.status(400).json({
-      ok: false,
-      error: `Für die Anmeldung braucht der Verein mindestens ${MIN_PLAYERS_FOR_REGISTRATION} Spieler (aktuell ${count}).`,
-    });
+  if (count < MIN_PLAYERS_FOR_UNLOCK) {
+    return res.status(400).json({ ok: false, error: `Zum Freischalten braucht der Verein mindestens ${MIN_PLAYERS_FOR_UNLOCK} Spieler (aktuell ${count}).` });
   }
   db.prepare('UPDATE clubs SET registered = 1 WHERE id = ?').run(club.id);
-  res.json({ ok: true, club: clubSummary(clubFor(user.id)) });
+  res.json({ ok: true, club: clubSummary(ownedClub(user.id, club.id)) });
 });
 
-// Pfad wählen (Admiral oder Kaiser). Nur wenn kein Anlauf läuft.
-app.post('/api/club/path', (req, res) => {
+// Pfad wählen (Admiral oder Kaiser). Nur freigeschaltet und ohne laufenden Anlauf.
+app.post('/api/clubs/:id/path', (req, res) => {
   const user = currentUser(req);
   if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
-  const club = clubFor(user.id);
-  if (!club) return res.status(400).json({ ok: false, error: 'Bitte zuerst deinen Verein anmelden.' });
-  if (!club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist noch nicht in der Vega League angemeldet.' });
+  const club = ownedClub(user.id, req.params.id);
+  if (!club) return res.status(404).json({ ok: false, error: 'Verein nicht gefunden.' });
+  if (!club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist noch nicht freigeschaltet.' });
   if (club.boss_id) return res.status(409).json({ ok: false, error: 'Der laufende Anlauf ist noch nicht beendet.' });
   if (!user.district) return res.status(400).json({ ok: false, error: 'Bitte zuerst das Quiz machen, damit dein Ozean feststeht.' });
   const path = String(req.body?.path ?? '');
   if (!PATHS[path]) return res.status(400).json({ ok: false, error: 'Unbekannter Pfad.' });
   db.prepare('UPDATE clubs SET path = ?, boss_id = NULL, mini_won = 0, main_won = 0 WHERE id = ?').run(path, club.id);
-  res.json({ ok: true, boss: bossState(clubFor(user.id), user.district) });
+  res.json({ ok: true, boss: bossState(ownedClub(user.id, club.id), user.district) });
 });
 
 // Hauptboss wählen. Er muss zu Ozean und Pfad passen.
-app.post('/api/club/boss', (req, res) => {
+app.post('/api/clubs/:id/boss', (req, res) => {
   const user = currentUser(req);
   if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
-  const club = clubFor(user.id);
-  if (!club) return res.status(400).json({ ok: false, error: 'Bitte zuerst deinen Verein anmelden.' });
-  if (!club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist noch nicht in der Vega League angemeldet.' });
+  const club = ownedClub(user.id, req.params.id);
+  if (!club) return res.status(404).json({ ok: false, error: 'Verein nicht gefunden.' });
+  if (!club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist noch nicht freigeschaltet.' });
   if (!club.path) return res.status(400).json({ ok: false, error: 'Bitte zuerst einen Pfad wählen.' });
   if (club.boss_id) return res.status(409).json({ ok: false, error: 'Der laufende Anlauf ist noch nicht beendet.' });
   const parsed = parseBossId(req.body?.bossId);
@@ -891,19 +999,56 @@ app.post('/api/club/boss', (req, res) => {
     return res.status(400).json({ ok: false, error: 'Dieser Hauptboss passt nicht zu deinem Ozean oder Pfad.' });
   }
   db.prepare('UPDATE clubs SET boss_id = ? WHERE id = ?').run(String(req.body.bossId), club.id);
-  res.json({ ok: true, boss: bossState(clubFor(user.id), user.district) });
+  res.json({ ok: true, boss: bossState(ownedClub(user.id, club.id), user.district) });
 });
 
-// Bosssieg eintragen (nur Admin): erst 3 Minibosse, dann der Hauptboss.
-app.post('/api/admin/club/win', (req, res) => {
+// Tabelle: Platzierung in Ozean und Zeitalter, nur freigeschaltete Vereine.
+app.get('/api/tabelle', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const groups = clubsFor(user.id).map((own) => {
+    const ownerDistrict = ownerOf(own)?.district || null;
+    const rows = db
+      .prepare(
+        `SELECT clubs.* FROM clubs JOIN users ON users.id = clubs.owner_id
+         WHERE clubs.registered = 1 AND clubs.era = ? AND users.district IS ?`
+      )
+      .all(own.era, ownerDistrict)
+      .map((c) => ({ club: c, score: clubScore(c) }))
+      .sort((a, b) => b.score - a.score);
+    const place = rows.findIndex((r) => r.club.id === own.id) + 1;
+    return {
+      clubId: own.id,
+      clubName: own.name,
+      era: eraName(own.era),
+      registered: !!own.registered,
+      place: place || null,
+      of: rows.length,
+      entries: rows.map((r, i) => ({
+        place: i + 1,
+        clubId: r.club.id,
+        name: r.club.name,
+        manager: ownerOf(r.club)?.name || '',
+        score: r.score,
+        own: r.club.owner_id === user.id,
+      })),
+    };
+  });
+  res.json({ ok: true, groups });
+});
+
+// Bosssieg eintragen (nur Admin): über E-Mail des VM und Vereinsname.
+app.post('/api/admin/clubs/win', (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ ok: false, error: 'Nur für den Admin.' });
   const email = String(req.body?.email ?? '').trim().toLowerCase();
+  const clubName = String(req.body?.clubName ?? '').trim();
   const kind = String(req.body?.kind ?? '');
-  const club = db
-    .prepare('SELECT clubs.* FROM clubs JOIN users ON users.id = clubs.owner_id WHERE users.email = ?')
-    .get(email);
-  if (!club) return res.status(404).json({ ok: false, error: 'Kein Verein zu dieser E-Mail.' });
-  if (!club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist noch nicht in der Vega League angemeldet.' });
+  const owner = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  const club = owner
+    ? db.prepare('SELECT * FROM clubs WHERE owner_id = ? AND name = ?').get(owner.id, clubName)
+    : null;
+  if (!club) return res.status(404).json({ ok: false, error: 'Kein Verein mit diesem Namen zu dieser E-Mail.' });
+  if (!club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist noch nicht freigeschaltet.' });
   if (!club.boss_id) return res.status(409).json({ ok: false, error: 'Dieser Verein hat keinen Hauptboss gewählt.' });
 
   if (kind === 'miniboss') {
@@ -913,10 +1058,7 @@ app.post('/api/admin/club/win', (req, res) => {
     if (club.mini_won < DIFFICULTY.length) {
       return res.status(409).json({ ok: false, error: 'Erst alle drei Minibosse besiegen.' });
     }
-    // Hauptboss besiegt: Zeitalter steigt, der Anlauf endet und der Pfad kann neu gewählt werden.
-    db.prepare(
-      'UPDATE clubs SET era = era + 1, path = NULL, boss_id = NULL, mini_won = 0, main_won = 0 WHERE id = ?'
-    ).run(club.id);
+    db.prepare('UPDATE clubs SET era = era + 1, path = NULL, boss_id = NULL, mini_won = 0, main_won = 0 WHERE id = ?').run(club.id);
   } else {
     return res.status(400).json({ ok: false, error: 'Art unbekannt: miniboss oder main.' });
   }

@@ -57,13 +57,13 @@
 
   // Begrüßung: vor der Anmeldung in Babylonia, danach Zeitalter und Rolle.
   let myName = null;
-  let myClub = null;
   let myRoleName = null;
+  let myEraName = 'Antike';
 
   function renderGreeting() {
     if (!myName) return;
     // Sobald das Quiz fertig ist, gilt das Zeitalter Antike (unabhängig von der Anmeldung).
-    const eraName = myClub && myClub.era ? myClub.era : 'Antike';
+    const eraName = myEraName || 'Antike';
     const ERA_WORDING = { Antike: 'der Antike' };
     const era = ERA_WORDING[eraName] || eraName;
     const role = myRoleName || 'Rookie';
@@ -493,178 +493,138 @@
     });
   })();
 
-  // ---------- Zeitalter, Verein und Kader ----------
+  // ---------- Verein: Kader, Formation, Vereinshaus ----------
 
   const POSITION_NAMES = {
-    TW: 'Torwart',
-    IV: 'Innenverteidiger',
-    LV: 'Linksverteidiger',
-    RV: 'Rechtsverteidiger',
-    DM: 'Defensives Mittelfeld',
-    ZM: 'Zentrales Mittelfeld',
-    OM: 'Offensives Mittelfeld',
-    LM: 'Linkes Mittelfeld',
-    RM: 'Rechtes Mittelfeld',
-    LA: 'Linker Angreifer',
-    RA: 'Rechter Angreifer',
-    ST: 'Mittelstürmer',
+    TW: 'Torwart', IV: 'Innenverteidiger', LV: 'Linksverteidiger', RV: 'Rechtsverteidiger',
+    DM: 'Defensives Mittelfeld', ZM: 'Zentrales Mittelfeld', OM: 'Offensives Mittelfeld',
+    LM: 'Linkes Mittelfeld', RM: 'Rechtes Mittelfeld', LA: 'Linker Angreifer', RA: 'Rechter Angreifer', ST: 'Mittelstürmer',
   };
   const MAX_PLAYERS_CLIENT = 24;
-
-  // Zeitalter erscheint erst, wenn der Verein in der Vega League angemeldet ist.
-  function renderEra(club) {
-    myClub = club;
-    renderGreeting();
-    const visible = !!(club && club.registered);
-    $('era-card').hidden = !visible;
-    if (!visible) return;
-    $('era-name').textContent = club.era;
-    $('era-info').textContent = `${club.name} · ${club.playerCount} / ${club.maxPlayers} Spieler`;
-  }
-
-  function renderClubStatus(club) {
-    $('club-register').hidden = !!club;
-    $('club-registered').hidden = !club;
-    if (!club) return;
-    $('club-name').textContent = club.name;
-    if (club.registered) {
-      $('club-info').textContent = `In der Vega League angemeldet · Zeitalter: ${club.era} · ${club.playerCount} Spieler`;
-      $('register-club').hidden = true;
-    } else {
-      const missing = Math.max(0, club.minPlayers - club.playerCount);
-      $('club-info').textContent = missing > 0
-        ? `Noch nicht angemeldet. Für die Anmeldung braucht der Verein mindestens ${club.minPlayers} Spieler (aktuell ${club.playerCount}, es fehlen ${missing}).`
-        : `Bereit für die Anmeldung: ${club.playerCount} Spieler im Kader.`;
-      $('register-club').hidden = false;
-      $('register-club').disabled = missing > 0;
-    }
-    $('register-message').hidden = true;
-  }
-
-  function fillPositionSelects() {
-    document.querySelectorAll('.pos-select').forEach((sel) => {
-      sel.innerHTML = '';
-      const none = document.createElement('option');
-      none.value = '';
-      none.textContent = '– keine –';
-      sel.appendChild(none);
-      Object.entries(POSITION_NAMES).forEach(([code, name]) => {
-        const opt = document.createElement('option');
-        opt.value = code;
-        opt.textContent = `${code} · ${name}`;
-        sel.appendChild(opt);
-      });
-    });
-  }
-
-  // ---------- Anlauf: Pfad, Hauptboss, Minibosse ----------
-
+  const MAX_CLUBS_CLIENT = 3;
   const DIFFICULTY_LABEL = { schwer: 'schwer', mittel: 'mittel', leicht: 'leicht' };
   const STATUS_LABEL = { besiegt: 'besiegt', aktuell: 'aktuell', gesperrt: 'gesperrt' };
+
+  let myClubs = [];
+  let activeClubId = null;
+  let activeClub = null;
   let myDistrictName = null;
+  let formationChoice = null;
+  let slotsState = {};
 
-  function renderBoss(boss) {
-    const card = $('boss-card');
-    card.hidden = false;
-    $('boss-district').textContent = myDistrictName
-      ? `Dein Ozean: ${myDistrictName}`
-      : 'Dein Ozean steht erst nach dem Quiz fest.';
-    $('boss-note').hidden = true;
+  function clubLogoEl(club) {
+    if (club.logo) {
+      const img = document.createElement('img');
+      img.src = club.logo;
+      img.alt = `Logo ${club.name}`;
+      return img;
+    }
+    return crestSvg({ name: club.name });
+  }
 
-    const active = !!boss.bossId;
-    $('path-choice').hidden = active;
-    $('boss-options').hidden = active || !boss.path || boss.options.length === 0;
-    $('boss-active').hidden = !active;
+  // Zeitalter-Karte: nur sichtbar, wenn ein Verein freigeschaltet ist.
+  function renderEra() {
+    const unlocked = myClubs.filter((c) => c.registered);
+    $('era-card').hidden = unlocked.length === 0;
+    if (!unlocked.length) return;
+    const c = unlocked[0];
+    $('era-name').textContent = c.era;
+    $('era-info').textContent = `${c.name} · ${c.members} / ${c.maxPlayers} Spieler`;
+  }
 
-    // Pfad-Buttons: Auswahl auch sichtbar, wenn noch kein Pfad gewählt ist
-    document.querySelectorAll('.path-btn').forEach((b) => {
-      b.style.outline = b.dataset.path === boss.path ? '3px solid #c9a227' : 'none';
+  async function refreshClubs() {
+    const res = await get('/api/clubs');
+    if (res.ok) myClubs = res.clubs;
+    if (!myClubs.find((c) => c.id === activeClubId)) activeClubId = myClubs.length ? myClubs[0].id : null;
+    const hasClubs = myClubs.length > 0;
+    $('club-area').hidden = false;
+    $('no-club').hidden = hasClubs;
+    document.querySelectorAll('[data-vsub="kader"], [data-vsub="formation"]').forEach((b) => {
+      b.hidden = !hasClubs;
     });
+    renderEra();
+    return myClubs;
+  }
 
-    const options = $('boss-option-list');
-    options.innerHTML = '';
-    boss.options.forEach((o) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'boss-option';
-      btn.textContent = o.name;
-      btn.addEventListener('click', async () => {
-        const res = await post('/api/club/boss', { bossId: o.id });
-        if (res.ok) loadClub();
-        else showBossNote(res.error);
-      });
-      options.appendChild(btn);
-    });
+  function showVSub(name) {
+    document.querySelectorAll('[data-vsub]').forEach((b) => b.classList.toggle('active', b.dataset.vsub === name));
+    document.querySelectorAll('[data-vpanel]').forEach((p) => p.classList.toggle('active', p.dataset.vpanel === name));
+    if (name === 'vereinshaus') renderClubGrid();
+    if (name === 'formation' && activeClub) renderFormation(activeClub);
+  }
 
-    if (active) {
-      $('boss-active-name').textContent = boss.bossName;
-      $('boss-active-path').textContent = boss.pathName;
-      const list = $('miniboss-list');
-      list.innerHTML = '';
-      boss.minibosses.forEach((m) => {
+  function showKSub(name) {
+    document.querySelectorAll('[data-ksub]').forEach((b) => b.classList.toggle('active', b.dataset.ksub === name));
+    document.querySelectorAll('[data-kpanel]').forEach((p) => p.classList.toggle('active', p.dataset.kpanel === name));
+    if (name === 'vega') renderVega(activeClub);
+    if (name === 'tabelle') renderTable();
+  }
+
+  document.querySelectorAll('[data-vsub]').forEach((b) => b.addEventListener('click', () => showVSub(b.dataset.vsub)));
+  document.querySelectorAll('[data-ksub]').forEach((b) => b.addEventListener('click', () => showKSub(b.dataset.ksub)));
+
+  async function renderVerein() {
+    await refreshClubs();
+    if (!myClubs.length) {
+      activeClub = null;
+      renderKader(null);
+      showVSub('vereinshaus');
+      return;
+    }
+    await loadClubDetail();
+  }
+
+  async function loadClubDetail() {
+    if (!activeClubId) return;
+    const res = await get(`/api/clubs/${activeClubId}`);
+    if (!res.ok) return;
+    activeClub = res;
+    renderKader(res);
+    renderFormation(res);
+    renderVega(res);
+  }
+
+  // ---------- Kader ----------
+
+  function renderKader(res) {
+    const hasClub = !!(res && res.club);
+    $('club-title').textContent = hasClub ? res.club.name : '';
+    $('club-meta').textContent = hasClub
+      ? `Gegründet ${res.club.founded} · Vereinsmanager ${res.club.manager} · ${res.club.members} Mitglieder`
+      : '';
+    const logo = $('club-logo');
+    logo.innerHTML = '';
+    if (hasClub) logo.appendChild(clubLogoEl(res.club));
+    $('roster-title').textContent = hasClub ? `${res.club.members} / ${res.club.maxPlayers} Spieler` : '';
+    const list = $('roster');
+    list.innerHTML = '';
+    if (hasClub) {
+      res.players.forEach((p) => {
         const li = document.createElement('li');
-        li.className = `miniboss-item status-${m.status}`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'roster-item';
         const name = document.createElement('span');
-        name.textContent = m.name;
-        const info = document.createElement('span');
-        info.className = 'miniboss-info';
-        info.textContent = `${DIFFICULTY_LABEL[m.difficulty]} · ${STATUS_LABEL[m.status]}`;
-        li.append(name, info);
+        name.textContent = p.fullName;
+        const meta = document.createElement('span');
+        meta.className = 'roster-meta';
+        meta.textContent = `${p.posMain || '–'} · ${p.country} · ${p.vegaId} · Level ${p.level}`;
+        btn.append(name, meta);
+        btn.addEventListener('click', () => openPlayer(p.id));
+        li.appendChild(btn);
         list.appendChild(li);
       });
     }
+    $('show-add-player').disabled = !hasClub || res.club.members >= MAX_PLAYERS_CLIENT;
+    $('show-add-player').hidden = !hasClub;
+    $('roster').closest('.card').hidden = !hasClub;
+    if (!hasClub) $('add-player').hidden = true;
+    showRosterView();
   }
-
-  function showBossNote(text) {
-    $('boss-note').textContent = text;
-    $('boss-note').hidden = false;
-  }
-
-  document.querySelectorAll('.path-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const res = await post('/api/club/path', { path: btn.dataset.path });
-      if (res.ok) loadClub();
-      else showBossNote(res.error);
-    });
-  });
 
   function showRosterView() {
     $('player-detail').hidden = true;
-    $('roster').closest('.card').hidden = false;
-  }
-
-  async function loadClub() {
-    const res = await get('/api/club');
-    if (!res.ok) return;
-    renderClubStatus(res.club);
-    $('club-missing').hidden = !!res.club;
-    $('club-roster-view').hidden = !res.club;
-    if (!res.club) return;
-    const registered = !!res.club.registered;
-    $('boss-locked').hidden = registered;
-    $('boss-card').hidden = !registered;
-    if (registered) renderBoss(res.boss);
-
-    $('roster-title').textContent = `${res.club.name} · ${res.club.playerCount} / ${res.club.maxPlayers} Spieler`;
-    const list = $('roster');
-    list.innerHTML = '';
-    res.players.forEach((p) => {
-      const li = document.createElement('li');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'roster-item';
-      const name = document.createElement('span');
-      name.textContent = p.fullName;
-      const meta = document.createElement('span');
-      meta.className = 'roster-meta';
-      meta.textContent = `${p.posMain || '–'} · ${p.country} · ${p.vegaId}`;
-      btn.append(name, meta);
-      btn.addEventListener('click', () => openPlayer(p.id));
-      li.appendChild(btn);
-      list.appendChild(li);
-    });
-    $('show-add-player').disabled = res.club.playerCount >= MAX_PLAYERS_CLIENT;
-    showRosterView();
+    $('roster').closest('.card').hidden = !(activeClub && activeClub.club);
   }
 
   // Kleines Radar für Spieler (eine Gruppe, Achsen = Metriken).
@@ -704,19 +664,18 @@
   const GROUP_KEYS = ['technics', 'athletics'];
 
   async function openPlayer(id) {
-    const res = await get(`/api/club/players/${id}`);
+    const res = await get(`/api/clubs/${activeClubId}/players/${id}`);
     if (!res.ok) return;
     currentPlayer = res.player;
     groupIndex = 0;
     $('roster').closest('.card').hidden = true;
     $('add-player').hidden = true;
     $('player-detail').hidden = false;
-
     const p = currentPlayer;
     $('pd-name').textContent = p.fullName;
     $('pd-meta').textContent = `Vega ID ${p.vegaId} · Jahrgang ${p.birthYear} · ${p.country}`;
     const pos = p.positions;
-    const side = [pos.side1, pos.side2].filter(Boolean).map((c) => c).join(', ');
+    const side = [pos.side1, pos.side2].filter(Boolean).join(', ');
     $('pd-positions').textContent = `Hauptposition: ${pos.main ? POSITION_NAMES[pos.main] : '–'}` + (side ? ` · Nebenpositionen: ${side}` : '');
     renderPlayerGroup();
     $('player-detail').scrollIntoView({ block: 'start' });
@@ -743,7 +702,6 @@
       lvl.className = 'metric-lvl';
       lvl.textContent = `L ${m.level}`;
       row.append(key, name, lvl);
-
       const detail = document.createElement('div');
       detail.className = 'metric-detail';
       detail.hidden = true;
@@ -756,14 +714,12 @@
       fill.style.width = `${m.progress}%`;
       bar.appendChild(fill);
       detail.append(text, bar);
-
       row.addEventListener('click', () => {
         detail.hidden = !detail.hidden;
       });
       li.append(row, detail);
       list.appendChild(li);
     });
-
     drawRadar($('pd-chart'), group.metrics.map((m) => ({ label: m.key, level: m.level })));
     document.querySelectorAll('[data-pdot]').forEach((d) => {
       d.classList.toggle('active', d.dataset.pdot === GROUP_KEYS[groupIndex]);
@@ -793,7 +749,6 @@
   $('close-player').addEventListener('click', () => {
     currentPlayer = null;
     showRosterView();
-    loadClub();
   });
 
   $('show-add-player').addEventListener('click', () => {
@@ -808,6 +763,22 @@
     $('player-form').reset();
   });
 
+  function fillPositionSelects() {
+    document.querySelectorAll('.pos-select').forEach((sel) => {
+      sel.innerHTML = '';
+      const none = document.createElement('option');
+      none.value = '';
+      none.textContent = '– keine –';
+      sel.appendChild(none);
+      Object.entries(POSITION_NAMES).forEach(([code, name]) => {
+        const opt = document.createElement('option');
+        opt.value = code;
+        opt.textContent = `${code} · ${name}`;
+        sel.appendChild(opt);
+      });
+    });
+  }
+
   $('player-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.currentTarget;
@@ -815,13 +786,14 @@
     ['fullName', 'vegaId', 'birthYear', 'country', 'email', 'phone', 'posMain', 'posSide1', 'posSide2'].forEach((f) => {
       body[f] = form.elements[f].value;
     });
-    const res = await post('/api/club/players', body);
+    const res = await post(`/api/clubs/${activeClubId}/players`, body);
     const msg = $('player-message');
     if (res.ok) {
       form.reset();
       $('add-player').hidden = true;
       msg.hidden = true;
-      await loadClub();
+      await loadClubDetail();
+      await refreshClubs();
       return;
     }
     msg.textContent = res.error || 'Der Spieler konnte nicht gespeichert werden.';
@@ -829,47 +801,409 @@
     msg.hidden = false;
   });
 
-  $('club-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const res = await post('/api/club', { name: e.currentTarget.elements.name.value });
-    const msg = $('club-message');
+  // ---------- Formation ----------
+
+  function renderFormation(res) {
+    const count = res.players.length;
+    const enough = count >= res.minPlayersForFormation;
+    $('formation-note').textContent = enough
+      ? 'Wähle eine Formation und ordne jeder Position einen Spieler zu.'
+      : `Eine Formation gibt es ab ${res.minPlayersForFormation} Spielern (aktuell ${count}).`;
+    $('save-formation').disabled = !enough;
+    if (!formationChoice || formationChoice.clubId !== res.club.id) {
+      formationChoice = { clubId: res.club.id, name: res.formation || '4-4-2' };
+      slotsState = res.slots || {};
+    }
+    const choice = $('formation-choice');
+    choice.innerHTML = '';
+    res.formations.forEach((f) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'formation-btn';
+      btn.classList.toggle('active', f.name === formationChoice.name);
+      btn.textContent = f.name;
+      btn.addEventListener('click', () => {
+        formationChoice.name = f.name;
+        slotsState = {};
+        renderFormation(res);
+      });
+      choice.appendChild(btn);
+    });
+    const rows = res.formations.find((f) => f.name === formationChoice.name).rows;
+    drawPitch(rows);
+    drawSlotList(rows, res.players);
+  }
+
+  function drawPitch(rows) {
+    const pitch = $('pitch');
+    pitch.innerHTML = '';
+    const count = rows.length;
+    let slot = 0;
+    rows.forEach((row, r) => {
+      const y = 88 - (r * 70) / Math.max(1, count - 1);
+      row.forEach((code, j) => {
+        const x = ((j + 1) * 100) / (row.length + 1);
+        const chip = document.createElement('div');
+        chip.className = 'pitch-chip';
+        chip.style.left = `${x}%`;
+        chip.style.top = `${y}%`;
+        const pid = slotsState[slot];
+        const name = pid ? (activeClub.players.find((p) => p.id === pid) || {}).fullName : '';
+        chip.textContent = name ? `${code}\n${name.split(' ').slice(-1)[0]}` : code;
+        pitch.appendChild(chip);
+        slot += 1;
+      });
+    });
+  }
+
+  function drawSlotList(rows, players) {
+    const list = $('slot-list');
+    list.innerHTML = '';
+    let slot = 0;
+    rows.forEach((row) => {
+      row.forEach((code) => {
+        const i = slot;
+        const wrap = document.createElement('label');
+        wrap.className = 'field';
+        const label = document.createElement('span');
+        label.textContent = `${code} · ${POSITION_NAMES[code]}`;
+        const sel = document.createElement('select');
+        sel.className = 'pos-select slot-select';
+        sel.dataset.slot = String(i);
+        const none = document.createElement('option');
+        none.value = '';
+        none.textContent = '– niemand –';
+        sel.appendChild(none);
+        players.forEach((p) => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `${p.fullName} (${p.posMain || '–'})`;
+          sel.appendChild(opt);
+        });
+        sel.value = slotsState[i] || '';
+        sel.addEventListener('change', () => {
+          slotsState[i] = sel.value || null;
+          drawPitch(rows);
+        });
+        wrap.append(label, sel);
+        list.appendChild(wrap);
+        slot += 1;
+      });
+    });
+  }
+
+  $('save-formation').addEventListener('click', async () => {
+    const slots = {};
+    document.querySelectorAll('.slot-select').forEach((sel) => {
+      slots[sel.dataset.slot] = sel.value || null;
+    });
+    const res = await post(`/api/clubs/${activeClubId}/formation`, { formation: formationChoice.name, slots });
+    const msg = $('formation-message');
+    msg.textContent = res.ok ? 'Aufstellung gespeichert.' : res.error || 'Die Aufstellung konnte nicht gespeichert werden.';
+    msg.className = res.ok ? 'status' : 'status error';
+    msg.hidden = false;
     if (res.ok) {
-      renderClubStatus(res.club);
-      renderEra(res.club);
-      await loadClub();
+      slotsState = res.slots;
+      await loadClubDetail();
+    }
+  });
+
+  // ---------- Vereinshaus ----------
+
+  function renderClubGrid() {
+    const grid = $('club-grid');
+    grid.innerHTML = '';
+    myClubs.forEach((c) => {
+      const tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'club-tile';
+      const logo = document.createElement('div');
+      logo.className = 'club-tile-logo';
+      logo.appendChild(clubLogoEl(c));
+      const name = document.createElement('strong');
+      name.textContent = c.name;
+      const info = document.createElement('span');
+      info.className = 'roster-meta';
+      info.textContent = `Gegründet ${c.founded} · ${c.manager} · ${c.members} Mitglieder`;
+      tile.append(logo, name, info);
+      tile.addEventListener('click', async () => {
+        activeClubId = c.id;
+        showVSub('kader');
+        await loadClubDetail();
+      });
+      grid.appendChild(tile);
+    });
+    $('show-add-club').hidden = myClubs.length >= MAX_CLUBS_CLIENT;
+  }
+
+  $('show-add-club').addEventListener('click', () => {
+    $('add-club').hidden = false;
+    $('club-create-message').hidden = true;
+    $('add-club').scrollIntoView({ block: 'start' });
+  });
+
+  $('cancel-add-club').addEventListener('click', () => {
+    $('add-club').hidden = true;
+    $('club-create-form').reset();
+  });
+
+  $('club-create-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const msg = $('club-create-message');
+    const created = await post('/api/clubs', { name: form.elements.name.value, founded: form.elements.founded.value });
+    if (!created.ok) {
+      msg.textContent = created.error || 'Der Verein konnte nicht angelegt werden.';
+      msg.className = 'status error';
+      msg.hidden = false;
       return;
     }
-    msg.textContent = res.error || 'Der Verein konnte nicht angemeldet werden.';
+    const file = form.elements.logo.files[0];
+    if (file) {
+      try {
+        await fetch(`/api/clubs/${created.club.id}/logo`, {
+          method: 'POST',
+          headers: { 'content-type': file.type },
+          body: file,
+          credentials: 'same-origin',
+        });
+      } catch (err) {
+        // Logo ist optional: der Verein bleibt auch ohne Logo angelegt.
+      }
+    }
+    form.reset();
+    $('add-club').hidden = true;
+    activeClubId = created.club.id;
+    await refreshClubs();
+    showVSub('kader');
+    await loadClubDetail();
+  });
+
+  // ---------- Vega League: Zielscheibe, Zeitstrahl, Anlauf, Freischalten ----------
+
+  const PATH_COLORS = { admiral: '#2b2a6b', kaiser: '#6b1a2a' };
+
+  function drawTarget(club) {
+    const box = $('target');
+    box.innerHTML = '';
+    const NS3 = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS3, 'svg');
+    svg.setAttribute('viewBox', '0 0 300 300');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', `Zielscheibe: aktuelles Zeitalter ${club.era}`);
+    const rings = [
+      { r: 130, label: club.era },
+      { r: 92, label: '' },
+      { r: 54, label: '' },
+    ];
+    rings.forEach((ring, i) => {
+      const current = i === 0;
+      const fill = current && club.path ? PATH_COLORS[club.path] : '#e6dcc2';
+      const circle = document.createElementNS(NS3, 'circle');
+      circle.setAttribute('cx', '150');
+      circle.setAttribute('cy', '150');
+      circle.setAttribute('r', String(ring.r));
+      circle.setAttribute('fill', fill);
+      circle.setAttribute('stroke', '#14213d');
+      circle.setAttribute('stroke-width', '2');
+      svg.appendChild(circle);
+      if (current) {
+        const text = document.createElementNS(NS3, 'text');
+        text.setAttribute('x', '150');
+        text.setAttribute('y', String(150 - ring.r + 18));
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('font-size', '13');
+        text.setAttribute('font-weight', 'bold');
+        text.setAttribute('fill', club.path ? '#ffffff' : '#14213d');
+        text.textContent = ring.label;
+        svg.appendChild(text);
+      }
+    });
+    const center = document.createElementNS(NS3, 'circle');
+    center.setAttribute('cx', '150');
+    center.setAttribute('cy', '150');
+    center.setAttribute('r', '6');
+    center.setAttribute('fill', '#c9a227');
+    svg.appendChild(center);
+    box.appendChild(svg);
+  }
+
+  function drawTimeline(boss) {
+    const box = $('timeline');
+    box.innerHTML = '';
+    const stations = [
+      { label: 'M1', kind: 'mini' },
+      { label: 'M2', kind: 'mini' },
+      { label: 'M3', kind: 'mini' },
+      { label: 'Hauptboss', kind: 'main' },
+    ];
+    const won = boss.miniWon;
+    const line = document.createElement('div');
+    line.className = 'timeline-line';
+    box.appendChild(line);
+    stations.forEach((st, i) => {
+      const dot = document.createElement('div');
+      dot.className = 'timeline-station';
+      dot.style.left = `${(i / (stations.length - 1)) * 100}%`;
+      let state = 'gesperrt';
+      if (st.kind === 'mini' && i < won) state = 'besiegt';
+      if (st.kind === 'mini' && i === won) state = 'aktuell';
+      if (st.kind === 'main' && boss.mainWon) state = 'besiegt';
+      if (st.kind === 'main' && won === 3 && !boss.mainWon) state = 'aktuell';
+      dot.classList.add(`st-${state}`);
+      if (st.kind === 'main') dot.classList.add('st-main');
+      dot.textContent = st.kind === 'main' ? '★' : '';
+      dot.title = st.label;
+      const lbl = document.createElement('span');
+      lbl.className = 'timeline-label';
+      lbl.style.left = `${(i / (stations.length - 1)) * 100}%`;
+      lbl.textContent = st.label;
+      box.append(dot, lbl);
+    });
+  }
+
+  function renderVega(res) {
+    const has = !!(res && res.club);
+    $('vega-no-club').hidden = has;
+    $('vega-area').hidden = !has;
+    if (!has) return;
+    const c = res.club;
+    $('vega-club-name').textContent = c.name;
+    if (c.registered) {
+      $('vega-status').textContent = `In der Vega League freigeschaltet · Zeitalter: ${c.era}`;
+    } else {
+      const missing = Math.max(0, c.minPlayers - c.members);
+      $('vega-status').textContent = missing > 0
+        ? `Noch nicht freigeschaltet. Dir fehlen ${missing} Spieler (mindestens ${c.minPlayers}).`
+        : 'Bereit zum Freischalten.';
+    }
+    drawTarget(c);
+    drawTimeline(res.boss);
+    const next = res.boss.bossId
+      ? (res.boss.miniWon < 3 ? `Nächster Gegner: Miniboss ${res.boss.miniWon + 1} von 3` : 'Nächster Gegner: Hauptboss')
+      : 'Wähle einen Pfad und einen Hauptboss, dann startet der Zeitstrahl.';
+    $('timeline-info').textContent = next;
+    $('unlock-club').hidden = !c.canUnlock;
+    $('boss-card').hidden = !c.registered;
+    if (c.registered) renderBoss(res.boss, c);
+  }
+
+  $('unlock-club').addEventListener('click', async () => {
+    const res = await post(`/api/clubs/${activeClubId}/unlock`, {});
+    const msg = $('unlock-message');
+    if (res.ok) {
+      await loadClubDetail();
+      await refreshClubs();
+      return;
+    }
+    msg.textContent = res.error || 'Freischalten fehlgeschlagen.';
     msg.className = 'status error';
     msg.hidden = false;
   });
 
-  $('register-club').addEventListener('click', async () => {
-    const res = await post('/api/club/register', {});
-    if (res.ok) {
-      renderClubStatus(res.club);
-      renderEra(res.club);
-      await loadClub();
-      return;
-    }
-    $('register-message').textContent = res.error || 'Die Anmeldung ist fehlgeschlagen.';
-    $('register-message').className = 'status error';
-    $('register-message').hidden = false;
-  });
-
-  // Beim Öffnen der Tabs den aktuellen Stand holen (z. B. neue Spieler)
-  document.querySelectorAll('.tab').forEach((t) => {
-    if (t.dataset.tab === 'verein') t.addEventListener('click', loadClub);
-    if (t.dataset.tab === 'karriere') {
-      t.addEventListener('click', async () => {
-        const me = await get('/api/me');
-        if (me.ok) {
-          renderClubStatus(me.club);
-          renderEra(me.club);
-        }
+  function renderBoss(boss, club) {
+    const active = !!boss.bossId;
+    $('boss-district').textContent = myDistrictName ? `Dein Ozean: ${myDistrictName}` : 'Dein Ozean steht erst nach dem Quiz fest.';
+    $('boss-note').hidden = true;
+    $('path-choice').hidden = active;
+    $('boss-options').hidden = active || !boss.path || boss.options.length === 0;
+    $('boss-active').hidden = !active;
+    document.querySelectorAll('.path-btn').forEach((b) => {
+      b.style.outline = b.dataset.path === boss.path ? '3px solid #c9a227' : 'none';
+    });
+    const options = $('boss-option-list');
+    options.innerHTML = '';
+    boss.options.forEach((o) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'boss-option';
+      btn.textContent = o.name;
+      btn.addEventListener('click', async () => {
+        const res = await post(`/api/clubs/${club.id}/boss`, { bossId: o.id });
+        if (res.ok) loadClubDetail();
+        else showBossNote(res.error);
+      });
+      options.appendChild(btn);
+    });
+    if (active) {
+      $('boss-active-name').textContent = boss.bossName;
+      $('boss-active-path').textContent = boss.pathName;
+      const list = $('miniboss-list');
+      list.innerHTML = '';
+      boss.minibosses.forEach((m) => {
+        const li = document.createElement('li');
+        li.className = `miniboss-item status-${m.status}`;
+        const name = document.createElement('span');
+        name.textContent = m.name;
+        const info = document.createElement('span');
+        info.className = 'miniboss-info';
+        info.textContent = `${DIFFICULTY_LABEL[m.difficulty]} · ${STATUS_LABEL[m.status]}`;
+        li.append(name, info);
+        list.appendChild(li);
       });
     }
+  }
+
+  function showBossNote(text) {
+    $('boss-note').textContent = text;
+    $('boss-note').hidden = false;
+  }
+
+  document.querySelectorAll('.path-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const res = await post(`/api/clubs/${activeClubId}/path`, { path: btn.dataset.path });
+      if (res.ok) loadClubDetail();
+      else showBossNote(res.error);
+    });
   });
+
+  // ---------- Tabelle (Karriere) ----------
+
+  async function renderTable() {
+    const area = $('table-area');
+    area.innerHTML = '';
+    const res = await get('/api/tabelle');
+    if (!res.ok) return;
+    if (!res.groups.length) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = '<p class="body-text">Lege zuerst einen Verein an.</p>';
+      area.appendChild(card);
+      return;
+    }
+    res.groups.forEach((g) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const kicker = document.createElement('p');
+      kicker.className = 'kicker';
+      kicker.textContent = `Tabelle · ${g.era}`;
+      const title = document.createElement('h2');
+      title.className = 'card-title';
+      title.textContent = g.clubName;
+      card.append(kicker, title);
+      if (!g.registered) {
+        const note = document.createElement('p');
+        note.className = 'body-text';
+        note.textContent = 'Noch nicht freigeschaltet. Dein Platz erscheint nach dem Freischalten.';
+        card.appendChild(note);
+      } else {
+        const place = document.createElement('p');
+        place.className = 'body-text';
+        place.textContent = g.place ? `Platz ${g.place} von ${g.of}` : '';
+        card.appendChild(place);
+        const list = document.createElement('ul');
+        list.className = 'table-list';
+        g.entries.forEach((e) => {
+          const li = document.createElement('li');
+          li.className = e.own ? 'table-row own' : 'table-row';
+          li.textContent = `${e.place}. ${e.name} · ${e.manager} · ${e.score}`;
+          list.appendChild(li);
+        });
+        card.appendChild(list);
+      }
+      area.appendChild(card);
+    });
+  }
 
   // ---------- Start ----------
 
@@ -887,10 +1221,13 @@
     renderSkills(me.skills);
     renderRole(me.role);
     setView(0);
-    renderEra(me.club);
-    renderClubStatus(me.club);
-    fillPositionSelects();
+    myEraName = me.eraNow || 'Antike';
     myDistrictName = me.district ? me.district.name : null;
+    myClubs = me.clubs || [];
+    activeClubId = myClubs.length ? myClubs[0].id : null;
+    renderEra();
+    renderGreeting();
+    fillPositionSelects();
 
     renderCrests(me.district);
     if (me.district) {
@@ -899,6 +1236,7 @@
       setQuizMode(false);
       await showWelcome();
     }
+    await renderVerein();
   }
 
   $('logout').addEventListener('click', async () => {

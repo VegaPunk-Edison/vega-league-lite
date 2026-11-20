@@ -472,3 +472,107 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .crest svg { width: 100%; height: 100%; display: block; }
 .crest-large { width: 110px; height: 126px; margin: 6px 0 10px; }
 .crest-large svg { width: 100%; height: 100%; display: block; }
+
+/* Verein: Kopf, Vereinshaus-Kacheln */
+.club-head { display: flex; gap: 12px; align-items: center; }
+.club-logo { width: 64px; height: 64px; flex-shrink: 0; }
+.club-logo img, .club-logo svg, .club-tile-logo img, .club-tile-logo svg { display: block; width: 100%; height: 100%; object-fit: contain; }
+.club-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 0 0 12px; }
+@media (min-width: 480px) { .club-grid { grid-template-columns: 1fr 1fr; } }
+.club-tile {
+  font: inherit;
+  text-align: left;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  background: var(--paper);
+  color: var(--navy);
+  border: 2px solid var(--navy);
+  cursor: pointer;
+}
+.club-tile:hover, .club-tile:focus-visible { border-color: var(--gold); outline: none; }
+.club-tile-logo { width: 56px; height: 56px; }
+
+/* Karriere: sechs Unterbereiche */
+.subtabs-6 .subtab { font-size: 13px; padding-left: 4px; padding-right: 4px; }
+
+/* Formation */
+.formation-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.formation-btn {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 12px;
+  background: var(--paper);
+  color: var(--navy);
+  border: 2px solid var(--navy);
+  cursor: pointer;
+}
+.formation-btn.active { background: var(--navy); color: var(--gold); border-color: var(--gold); }
+.pitch {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  margin: 8px 0 12px;
+  background: var(--navy);
+  border: 2px solid var(--gold);
+  overflow: hidden;
+}
+.pitch::before {
+  content: "";
+  position: absolute;
+  left: 8%; right: 8%; top: 50%;
+  height: 1px;
+  background: rgba(201, 162, 39, 0.6);
+}
+.pitch-chip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 48px;
+  padding: 3px 5px;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  white-space: pre-line;
+  background: var(--paper);
+  color: var(--navy);
+  border: 2px solid var(--gold);
+}
+.slot-list { display: grid; gap: 8px; margin-bottom: 12px; }
+.slot-list .field span { font-size: 13px; }
+
+/* Vega League: Zielscheibe und Zeitstrahl */
+.target { width: 100%; max-width: 300px; margin: 8px auto 12px; }
+.target svg { display: block; width: 100%; height: auto; }
+.timeline { position: relative; height: 64px; margin: 16px 20px 4px; }
+.timeline-line { position: absolute; left: 0; right: 0; top: 14px; height: 3px; background: var(--navy); }
+.timeline-station {
+  position: absolute;
+  top: 14px;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid var(--navy);
+  background: var(--paper);
+  box-sizing: border-box;
+  font-size: 13px;
+  line-height: 18px;
+  text-align: center;
+}
+.timeline-station.st-main { width: 30px; height: 30px; top: 14px; line-height: 26px; font-size: 16px; }
+.timeline-station.st-besiegt { background: var(--gold); border-color: var(--gold); }
+.timeline-station.st-aktuell { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.35); }
+.timeline-station.st-gesperrt { opacity: 0.55; }
+.timeline-label {
+  position: absolute;
+  top: 34px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--navy);
+}
+
+/* Tabelle */
+.table-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.table-row { padding: 8px 10px; border-top: 1px solid rgba(201, 162, 39, 0.6); font-size: 14px; }
+.table-row.own { font-weight: bold; background: rgba(201, 162, 39, 0.18); }
