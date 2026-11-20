@@ -78,7 +78,21 @@
   }
 
   // Platzhalter-Wappen. Später kommt pro Ozean ein eigenes Bild dazu.
+  // Wappen des Ozeans: liegt eine Datei public/wappen/<schluessel>.svg vor, wird sie gezeigt.
+  // Fehlt sie, bleibt das Platzhalter-Wappen.
   function crestSvg(district) {
+    if (district && district.key) {
+      const img = document.createElement('img');
+      img.className = 'crest-img';
+      img.alt = `Wappen ${district.name}`;
+      img.src = `/wappen/${district.key}.svg`;
+      img.onerror = () => img.replaceWith(placeholderCrest(district));
+      return img;
+    }
+    return placeholderCrest(district);
+  }
+
+  function placeholderCrest(district) {
     const letter = district ? district.name.charAt(0).toUpperCase() : '?';
     const NS2 = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(NS2, 'svg');
