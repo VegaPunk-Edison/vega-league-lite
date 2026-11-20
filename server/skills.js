@@ -11,18 +11,16 @@ const SKILLS = [
   { key: 'finances', name: 'Finances', short: 'Finances' },
 ];
 
-// Level-Kurve: Jedes Level braucht 10 % mehr XP als das vorige, ohne Obergrenze.
-// Gesamt-XP, um Level n zu erreichen: 1000 × (1,1^n − 1). Level 1 = 100 XP, Level 2 = 210 XP.
-const BASE = 1000;
-const GROWTH = 1.1;
-
+// Level-Kurve (übernommen aus der ProClubs-App): Gesamt-XP, um Level n zu erreichen, sind n³.
+// Keine Obergrenze: die Kurve geht über Level 100 hinaus weiter.
 function xpToReach(level) {
-  return Math.round(BASE * (Math.pow(GROWTH, level) - 1));
+  return level * level * level;
 }
 
 function levelFromXp(xp) {
-  let level = 0;
+  let level = Math.floor(Math.cbrt(xp));
   while (xpToReach(level + 1) <= xp) level += 1;
+  while (level > 0 && xpToReach(level) > xp) level -= 1;
   return level;
 }
 
