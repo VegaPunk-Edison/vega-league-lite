@@ -80,6 +80,10 @@
 
   function friendlyError(err) {
     if (err && err.name === 'NotAllowedError') return 'Vorgang abgebrochen oder Fingerabdruck nicht erkannt.';
+    // Browser ohne Unterstützung für Fingerabdruck-Anmeldung: der Browser meldet das auf Englisch.
+    if (err && (err.name === 'NotSupportedError' || /allowCredentials|Resident credentials/i.test(err.message || ''))) {
+      return 'Fingerabdruck ist auf diesem Gerät nicht verfügbar. Bitte mit Code anmelden.';
+    }
     if (err && err.message) return err.message;
     return 'Unbekannter Fehler.';
   }
@@ -562,8 +566,19 @@
     }
     const res = await apiPost('/api/admin/players/grant', { vegaId: vegaId.trim(), metric, xp: Number(amount) });
     if (res.ok) {
-      const m = res.player.groups.flatMap((g) => g.metrics).find((x) => x.key === metric);
-      Term.print(`[ OK ] ${res.player.fullName}: ${metric} ist jetzt Level ${m.level} (${m.xp} XP).`, 'ok');
+      // Attribute und Stats liegen in unterschiedlichen Listen des Spielerdetails.
+      const all = [
+        ...res.player.groups.flatMap((g) => g.metrics),
+        ...res.player.stats.flatMap((c) => c.subs),
+        ...res.player.sonstige,
+      ];
+      const m = all.find((x) => x.key === metric);
+      Term.print(
+        m
+          ? `[ OK ] ${res.player.fullName}: ${metric} ist jetzt Level ${m.level} (${m.xp} XP).`
+          : `[ OK ] ${res.player.fullName}: ${metric} wurde gespeichert.`,
+        'ok'
+      );
     } else {
       Term.error(res.error || 'XP konnten nicht vergeben werden.');
     }
