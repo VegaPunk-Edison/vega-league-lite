@@ -634,3 +634,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Hauptattribute: tippbar, öffnen die Spider-Chart-Ansicht */
 .tappable { cursor: pointer; }
 .tappable:hover, .tappable:focus-visible { background: rgba(201, 162, 39, 0.12); }
+
+/* Spielerbereich: Attribute, Athletics, Statistik */
+.subtabs-3 { grid-template-columns: repeat(3, 1fr); }
+.subtabs-3 .subtab { font-size: 13px; padding-left: 4px; padding-right: 4px; }

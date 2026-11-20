@@ -116,22 +116,18 @@
             <p id="pd-email" class="body-text"></p>
             <p id="pd-positions" class="body-text"></p>
 
-            <p class="kicker">Attribute</p>
-            <nav class="subtabs subtabs-2" aria-label="Attribute">
-              <button class="subtab active" data-pview="technik" type="button">Technik</button>
-              <button class="subtab" data-pview="levels" type="button">Übersicht</button>
+            <nav class="subtabs subtabs-3" aria-label="Spielerbereich">
+              <button class="subtab active" data-pview="attribute" type="button">Attribute</button>
+              <button class="subtab" data-pview="levels" type="button">Athletics</button>
+              <button class="subtab" data-pview="stats" type="button">Statistik</button>
             </nav>
 
-            <div data-pview-panel="technik">
-              <div id="pd-technik"></div>
-            </div>
-
-            <div data-pview-panel="levels" hidden>
-              <div id="pd-levels"></div>
+            <div data-pview-panel="attribute">
+              <div id="pd-attr"></div>
             </div>
 
             <div data-pview-panel="chart" hidden>
-              <button class="ghost-dark" data-pview="levels" type="button" style="margin-bottom: 10px;">← Übersicht</button>
+              <button class="ghost-dark" data-pview="attribute" type="button" style="margin-bottom: 10px;">← Attribute</button>
               <p class="kicker" id="pd-view-name">Technik</p>
               <div class="mini-wrap">
                 <div id="pd-chart" class="mini-chart"></div>
@@ -141,6 +137,14 @@
                 <span class="view-dot active" data-pdot="technics"></span>
                 <span class="view-dot" data-pdot="athletics"></span>
               </div>
+            </div>
+
+            <div data-pview-panel="levels" hidden>
+              <div id="pd-levels"></div>
+            </div>
+
+            <div data-pview-panel="stats" hidden>
+              <div id="pd-stats"></div>
             </div>
           </div>
         </div>
