@@ -814,14 +814,20 @@ function playerDetail(p) {
 }
 
 // Verein anlegen (bis zu drei pro VM).
+// Vereinsname: 3 bis 60 Zeichen, Leerzeichen zusammengefasst. null bei ungültigem Namen.
+function clubNameFrom(body) {
+  const name = String(body?.name ?? '').replace(/\s+/g, ' ').trim();
+  return name.length >= 3 && name.length <= 60 ? name : null;
+}
+
 app.post('/api/clubs', (req, res) => {
   const user = currentUser(req);
   if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
   if (clubsFor(user.id).length >= MAX_CLUBS) {
     return res.status(409).json({ ok: false, error: `Du kannst höchstens ${MAX_CLUBS} Vereine anlegen.` });
   }
-  const name = String(req.body?.name ?? '').replace(/\s+/g, ' ').trim();
-  if (name.length < 3 || name.length > 60) {
+  const name = clubNameFrom(req.body);
+  if (!name) {
     return res.status(400).json({ ok: false, error: 'Der Vereinsname braucht 3 bis 60 Zeichen.' });
   }
   const founded = Number(req.body?.founded);
@@ -861,6 +867,18 @@ app.post(
     res.json({ ok: true, club: clubSummary(ownedClub(user.id, club.id)) });
   }
 );
+
+// Name des Vereins ändern (nur eigene Vereine).
+app.patch('/api/clubs/:id', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const club = ownedClub(user.id, req.params.id);
+  if (!club) return res.status(404).json({ ok: false, error: 'Verein nicht gefunden.' });
+  const name = clubNameFrom(req.body);
+  if (!name) return res.status(400).json({ ok: false, error: 'Der Vereinsname braucht 3 bis 60 Zeichen.' });
+  db.prepare('UPDATE clubs SET name = ? WHERE id = ?').run(name, club.id);
+  res.json({ ok: true, club: clubSummary(ownedClub(user.id, club.id)) });
+});
 
 // Ein Verein mit Kader, Formation, Anlauf und Freischaltung.
 app.get('/api/clubs/:id', (req, res) => {

@@ -57,10 +57,11 @@
       </div>
 
       <div id="club-area" hidden>
-        <nav class="subtabs" aria-label="Verein Unterbereiche">
+        <nav class="subtabs subtabs-4" aria-label="Verein Unterbereiche">
           <button class="subtab active" data-vsub="kader" type="button">Kader</button>
           <button class="subtab" data-vsub="formation" type="button">Formation</button>
           <button class="subtab" data-vsub="vereinshaus" type="button">Vereinshaus</button>
+          <button class="subtab" data-vsub="einstellungen" type="button">Einstellungen</button>
         </nav>
 
         <!-- Kader -->
@@ -150,6 +151,19 @@
               <button class="primary" type="submit">Verein anlegen</button>
               <button id="cancel-add-club" class="ghost-dark" type="button">Abbrechen</button>
               <p id="club-create-message" class="status" hidden></p>
+            </form>
+          </div>
+        </div>
+
+        <div class="subpanel" data-vpanel="einstellungen">
+          <div class="card">
+            <p class="kicker">Vereinseinstellungen</p>
+            <form id="club-settings-form" autocomplete="off" novalidate>
+              <label class="field"><span>Vereinsname *</span><input name="name" type="text" maxlength="60" required></label>
+              <div class="field"><span>Aktuelles Logo</span><div id="settings-logo" class="club-logo settings-logo"></div></div>
+              <label class="field"><span>Neues Logo (png, jpg oder webp, wird automatisch verkleinert)</span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp"></label>
+              <button class="primary" type="submit">Speichern</button>
+              <p id="club-settings-message" class="status" hidden></p>
             </form>
           </div>
         </div>

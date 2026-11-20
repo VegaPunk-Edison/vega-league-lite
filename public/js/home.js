@@ -539,7 +539,7 @@
     const hasClubs = myClubs.length > 0;
     $('club-area').hidden = false;
     $('no-club').hidden = hasClubs;
-    document.querySelectorAll('[data-vsub="kader"], [data-vsub="formation"]').forEach((b) => {
+    document.querySelectorAll('[data-vsub="kader"], [data-vsub="formation"], [data-vsub="einstellungen"]').forEach((b) => {
       b.hidden = !hasClubs;
     });
     renderEra();
@@ -551,6 +551,7 @@
     document.querySelectorAll('[data-vpanel]').forEach((p) => p.classList.toggle('active', p.dataset.vpanel === name));
     if (name === 'vereinshaus') renderClubGrid();
     if (name === 'formation' && activeClub) renderFormation(activeClub);
+    if (name === 'einstellungen' && activeClub) renderSettings(activeClub);
   }
 
   function showKSub(name) {
@@ -908,6 +909,116 @@
     }
   });
 
+  // ---------- Logo und Vereinseinstellungen ----------
+
+  const LOGO_MAX_BYTES = 1024 * 1024;
+
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Die Bilddatei konnte nicht gelesen werden.'));
+      };
+      img.src = url;
+    });
+  }
+
+  function canvasToBlob(canvas, type, quality) {
+    return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+  }
+
+  // Verkleinert das Bild, damit es unter 1 MB bleibt (Handyfotos sind oft größer).
+  async function prepareLogo(file) {
+    const img = await loadImage(file);
+    for (const max of [512, 384, 256]) {
+      const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      for (const quality of [0.9, 0.75]) {
+        const blob = await canvasToBlob(canvas, 'image/webp', quality);
+        if (blob && blob.type === 'image/webp' && blob.size <= LOGO_MAX_BYTES) return blob;
+      }
+      const png = await canvasToBlob(canvas, 'image/png');
+      if (png && png.type === 'image/png' && png.size <= LOGO_MAX_BYTES) return png;
+    }
+    throw new Error('Das Bild ist auch verkleinert zu groß.');
+  }
+
+  async function uploadLogo(clubId, file) {
+    const blob = await prepareLogo(file);
+    const res = await fetch(`/api/clubs/${clubId}/logo`, {
+      method: 'POST',
+      headers: { 'content-type': blob.type },
+      body: blob,
+      credentials: 'same-origin',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Das Logo konnte nicht hochgeladen werden.');
+    return data.club;
+  }
+
+  async function patch(url, body) {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, ...data };
+  }
+
+  function showSettingsMessage(text, ok) {
+    const msg = $('club-settings-message');
+    msg.textContent = text;
+    msg.className = ok ? 'status' : 'status error';
+    msg.hidden = false;
+  }
+
+  function renderSettings(res) {
+    const form = $('club-settings-form');
+    form.elements.name.value = res.club.name;
+    form.elements.logo.value = '';
+    const preview = $('settings-logo');
+    preview.innerHTML = '';
+    preview.appendChild(clubLogoEl(res.club));
+    $('club-settings-message').hidden = true;
+  }
+
+  $('club-settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!activeClub) return;
+    const form = e.currentTarget;
+    const name = form.elements.name.value.replace(/\s+/g, ' ').trim();
+    const file = form.elements.logo.files[0];
+    if (name === activeClub.club.name && !file) {
+      showSettingsMessage('Nichts zu speichern.', false);
+      return;
+    }
+    let error = null;
+    try {
+      if (name !== activeClub.club.name) {
+        const r = await patch(`/api/clubs/${activeClubId}`, { name });
+        if (!r.ok) throw new Error(r.error || 'Der Name konnte nicht gespeichert werden.');
+      }
+      if (file) await uploadLogo(activeClubId, file);
+    } catch (err) {
+      error = err.message;
+    }
+    await refreshClubs();
+    await loadClubDetail();
+    renderSettings(activeClub);
+    showSettingsMessage(error || 'Gespeichert.', !error);
+  });
+
   // ---------- Vereinshaus ----------
 
   function renderClubGrid() {
@@ -959,24 +1070,25 @@
       return;
     }
     const file = form.elements.logo.files[0];
+    let logoError = null;
     if (file) {
       try {
-        await fetch(`/api/clubs/${created.club.id}/logo`, {
-          method: 'POST',
-          headers: { 'content-type': file.type },
-          body: file,
-          credentials: 'same-origin',
-        });
+        await uploadLogo(created.club.id, file);
       } catch (err) {
-        // Logo ist optional: der Verein bleibt auch ohne Logo angelegt.
+        logoError = err.message; // Der Verein bleibt angelegt, nur das Logo fehlt.
       }
     }
     form.reset();
     $('add-club').hidden = true;
     activeClubId = created.club.id;
     await refreshClubs();
-    showVSub('kader');
     await loadClubDetail();
+    if (logoError) {
+      showVSub('einstellungen');
+      showSettingsMessage(`Verein angelegt. Das Logo konnte nicht gespeichert werden: ${logoError} Du kannst es unter Einstellungen erneut hochladen.`, false);
+    } else {
+      showVSub('kader');
+    }
   });
 
   // ---------- Vega League: Zielscheibe, Zeitstrahl, Anlauf, Freischalten ----------
