@@ -22,7 +22,7 @@
       </div>
 
       <!-- Zeitalter des Vereins (immer ganz oben) -->
-      <div class="card era-card">
+      <div id="era-card" class="card era-card" hidden>
         <p class="kicker">Zeitalter</p>
         <h2 id="era-name" class="card-title">Antike</h2>
         <p id="era-info" class="body-text">Melde deinen Verein unter Karriere an, dann startest du in der Antike.</p>
@@ -62,6 +62,10 @@
       </div>
 
       <div id="club-roster-view" hidden>
+        <div id="boss-locked" class="card" hidden>
+          <p class="body-text">Dein Anlauf startet, sobald der Verein in der Vega League angemeldet ist. Dafür brauchst du mindestens 11 Spieler und die Anmeldung unter Karriere.</p>
+        </div>
+
         <div id="boss-card" class="card" hidden>
           <p class="kicker">Anlauf</p>
           <h2 class="card-title">Pfad und Hauptboss</h2>
@@ -155,6 +159,8 @@
         <p class="kicker">Vega League</p>
         <h2 id="club-name" class="card-title"></h2>
         <p id="club-info" class="body-text"></p>
+        <button id="register-club" class="primary" type="button" hidden>In die Vega League anmelden</button>
+        <p id="register-message" class="status" hidden></p>
       </div>
     </section>
 

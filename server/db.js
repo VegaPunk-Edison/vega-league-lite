@@ -125,6 +125,7 @@ db.exec(`
     mini_won: 'INTEGER NOT NULL DEFAULT 0',
     main_won: 'INTEGER NOT NULL DEFAULT 0',
     era: 'INTEGER NOT NULL DEFAULT 0',
+    registered: 'INTEGER NOT NULL DEFAULT 0',
   };
   for (const [col, type] of Object.entries(add)) {
     if (!clubColumns.includes(col)) db.exec(`ALTER TABLE clubs ADD COLUMN ${col} ${type}`);

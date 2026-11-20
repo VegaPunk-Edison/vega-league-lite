@@ -444,11 +444,13 @@
   };
   const MAX_PLAYERS_CLIENT = 24;
 
+  // Zeitalter erscheint erst, wenn der Verein in der Vega League angemeldet ist.
   function renderEra(club) {
-    $('era-name').textContent = club ? club.era : 'Antike';
-    $('era-info').textContent = club
-      ? `${club.name} · ${club.playerCount} / ${club.maxPlayers} Spieler`
-      : 'Melde deinen Verein unter Karriere an, dann startest du in der Antike.';
+    const visible = !!(club && club.registered);
+    $('era-card').hidden = !visible;
+    if (!visible) return;
+    $('era-name').textContent = club.era;
+    $('era-info').textContent = `${club.name} · ${club.playerCount} / ${club.maxPlayers} Spieler`;
   }
 
   function renderClubStatus(club) {
@@ -456,7 +458,18 @@
     $('club-registered').hidden = !club;
     if (!club) return;
     $('club-name').textContent = club.name;
-    $('club-info').textContent = `Zeitalter: ${club.era} · ${club.playerCount} / ${club.maxPlayers} Spieler`;
+    if (club.registered) {
+      $('club-info').textContent = `In der Vega League angemeldet · Zeitalter: ${club.era} · ${club.playerCount} Spieler`;
+      $('register-club').hidden = true;
+    } else {
+      const missing = Math.max(0, club.minPlayers - club.playerCount);
+      $('club-info').textContent = missing > 0
+        ? `Noch nicht angemeldet. Für die Anmeldung braucht der Verein mindestens ${club.minPlayers} Spieler (aktuell ${club.playerCount}, es fehlen ${missing}).`
+        : `Bereit für die Anmeldung: ${club.playerCount} Spieler im Kader.`;
+      $('register-club').hidden = false;
+      $('register-club').disabled = missing > 0;
+    }
+    $('register-message').hidden = true;
   }
 
   function fillPositionSelects() {
@@ -558,7 +571,10 @@
     $('club-missing').hidden = !!res.club;
     $('club-roster-view').hidden = !res.club;
     if (!res.club) return;
-    renderBoss(res.boss);
+    const registered = !!res.club.registered;
+    $('boss-locked').hidden = registered;
+    $('boss-card').hidden = !registered;
+    if (registered) renderBoss(res.boss);
 
     $('roster-title').textContent = `${res.club.name} · ${res.club.playerCount} / ${res.club.maxPlayers} Spieler`;
     const list = $('roster');
@@ -759,8 +775,31 @@
     msg.hidden = false;
   });
 
+  $('register-club').addEventListener('click', async () => {
+    const res = await post('/api/club/register', {});
+    if (res.ok) {
+      renderClubStatus(res.club);
+      renderEra(res.club);
+      await loadClub();
+      return;
+    }
+    $('register-message').textContent = res.error || 'Die Anmeldung ist fehlgeschlagen.';
+    $('register-message').className = 'status error';
+    $('register-message').hidden = false;
+  });
+
+  // Beim Öffnen der Tabs den aktuellen Stand holen (z. B. neue Spieler)
   document.querySelectorAll('.tab').forEach((t) => {
     if (t.dataset.tab === 'verein') t.addEventListener('click', loadClub);
+    if (t.dataset.tab === 'karriere') {
+      t.addEventListener('click', async () => {
+        const me = await get('/api/me');
+        if (me.ok) {
+          renderClubStatus(me.club);
+          renderEra(me.club);
+        }
+      });
+    }
   });
 
   // ---------- Start ----------

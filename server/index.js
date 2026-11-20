@@ -678,6 +678,8 @@ app.post('/api/quiz/submit', (req, res) => {
 // Zeitalter eines Vereins. Start ist immer die Antike.
 // Die weiteren Namen trägt der Betreiber später ein.
 const ERAS = ['Antike'];
+// Mindestanzahl Spieler, damit ein Verein in der Vega League angemeldet werden kann.
+const MIN_PLAYERS_FOR_REGISTRATION = 11;
 
 function clubFor(userId) {
   return db.prepare('SELECT * FROM clubs WHERE owner_id = ?').get(userId) || null;
@@ -699,6 +701,8 @@ function clubSummary(club) {
     eraIndex: club.era,
     playerCount: playerCount(club.id),
     maxPlayers: MAX_PLAYERS,
+    registered: !!club.registered,
+    minPlayers: MIN_PLAYERS_FOR_REGISTRATION,
     activeRun: !!club.boss_id,
   };
 }
@@ -832,12 +836,31 @@ app.post('/api/admin/players/grant', (req, res) => {
   res.json({ ok: true, player: detail });
 });
 
+// In die Vega League anmelden. Erst ab 11 Spielern im Kader.
+app.post('/api/club/register', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const club = clubFor(user.id);
+  if (!club) return res.status(400).json({ ok: false, error: 'Bitte zuerst deinen Verein anlegen.' });
+  if (club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist bereits angemeldet.' });
+  const count = playerCount(club.id);
+  if (count < MIN_PLAYERS_FOR_REGISTRATION) {
+    return res.status(400).json({
+      ok: false,
+      error: `Für die Anmeldung braucht der Verein mindestens ${MIN_PLAYERS_FOR_REGISTRATION} Spieler (aktuell ${count}).`,
+    });
+  }
+  db.prepare('UPDATE clubs SET registered = 1 WHERE id = ?').run(club.id);
+  res.json({ ok: true, club: clubSummary(clubFor(user.id)) });
+});
+
 // Pfad wählen (Admiral oder Kaiser). Nur wenn kein Anlauf läuft.
 app.post('/api/club/path', (req, res) => {
   const user = currentUser(req);
   if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
   const club = clubFor(user.id);
   if (!club) return res.status(400).json({ ok: false, error: 'Bitte zuerst deinen Verein anmelden.' });
+  if (!club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist noch nicht in der Vega League angemeldet.' });
   if (club.boss_id) return res.status(409).json({ ok: false, error: 'Der laufende Anlauf ist noch nicht beendet.' });
   if (!user.district) return res.status(400).json({ ok: false, error: 'Bitte zuerst das Quiz machen, damit dein Ozean feststeht.' });
   const path = String(req.body?.path ?? '');
@@ -852,6 +875,7 @@ app.post('/api/club/boss', (req, res) => {
   if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
   const club = clubFor(user.id);
   if (!club) return res.status(400).json({ ok: false, error: 'Bitte zuerst deinen Verein anmelden.' });
+  if (!club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist noch nicht in der Vega League angemeldet.' });
   if (!club.path) return res.status(400).json({ ok: false, error: 'Bitte zuerst einen Pfad wählen.' });
   if (club.boss_id) return res.status(409).json({ ok: false, error: 'Der laufende Anlauf ist noch nicht beendet.' });
   const parsed = parseBossId(req.body?.bossId);
@@ -871,6 +895,7 @@ app.post('/api/admin/club/win', (req, res) => {
     .prepare('SELECT clubs.* FROM clubs JOIN users ON users.id = clubs.owner_id WHERE users.email = ?')
     .get(email);
   if (!club) return res.status(404).json({ ok: false, error: 'Kein Verein zu dieser E-Mail.' });
+  if (!club.registered) return res.status(409).json({ ok: false, error: 'Der Verein ist noch nicht in der Vega League angemeldet.' });
   if (!club.boss_id) return res.status(409).json({ ok: false, error: 'Dieser Verein hat keinen Hauptboss gewählt.' });
 
   if (kind === 'miniboss') {
