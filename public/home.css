@@ -596,3 +596,21 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Hinweis: Verein kann sich in der Vega League anmelden */
 .notice-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); margin-left: 6px; vertical-align: middle; }
 .notice-dot[hidden] { display: none; }
+
+/* Hauptboss: nur die Krone, ohne Kreis. Der Zustand zeigt sich über die Farbe. */
+.timeline-station.st-main,
+.timeline-station.st-main.st-besiegt,
+.timeline-station.st-main.st-aktuell {
+  border: none;
+  background: none;
+  box-shadow: none;
+  width: 34px;
+  height: 34px;
+}
+.timeline-station.st-main svg { width: 30px; height: 30px; }
+.timeline-station.st-main.st-besiegt { color: var(--gold); }
+.timeline-station.st-main.st-aktuell { color: var(--navy); }
+.timeline-station.st-main.st-gesperrt { color: #8a8f98; }
+
+/* Zeitstrahl endet vor der Krone, damit die Linie nicht durch das Symbol läuft */
+.timeline-line { right: 24px; }
