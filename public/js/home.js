@@ -129,9 +129,6 @@
 
   function showOzean(district) {
     $('info-ozean').textContent = `Dein Ozean: ${district.name}. ${district.desc}`;
-    const infoCrest = $('info-crest');
-    infoCrest.innerHTML = '';
-    infoCrest.appendChild(crestSvg(district));
     renderCrests(district);
     $('welcome').hidden = true;
     $('quiz').hidden = true;
@@ -549,6 +546,21 @@
     $('era-info').textContent = `${c.name} · ${c.members} / ${c.maxPlayers} Spieler`;
   }
 
+  // Hype-Symbol unter dem Header-Wappen, für den aktiven Verein (oder den ersten).
+  function renderHeaderHype() {
+    const box = $('header-hype');
+    box.innerHTML = '';
+    const club = myClubs.find((c) => c.id === activeClubId) || myClubs[0];
+    if (!club) return;
+    const stage = club.hypeStage || 0;
+    const img = document.createElement('img');
+    img.className = 'hype-icon';
+    img.alt = `Hype: ${HYPE_STAGES[stage]}`;
+    img.src = `/hype/${stage}.gif`;
+    img.onerror = () => img.replaceWith(flameSvg(stage));
+    box.appendChild(img);
+  }
+
   async function refreshClubs() {
     const res = await get('/api/clubs');
     if (res.ok) myClubs = res.clubs;
@@ -561,6 +573,7 @@
     });
     renderEra();
     renderUnlockHint();
+    renderHeaderHype();
     return myClubs;
   }
 

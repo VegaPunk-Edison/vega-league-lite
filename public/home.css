@@ -623,5 +623,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Ozean-Wappen als Bild */
 .crest img, .crest-large img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
-/* Wappen in der Info-Karte, über dem Ozean-Text */
-.info-crest { margin: 0 0 8px; }
+/* Header: Wappen mit Hype-Symbol darunter */
+.crest-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.header-hype { min-height: 18px; display: flex; justify-content: center; }
+.header-hype .hype-icon { width: 18px; height: 18px; }
