@@ -721,14 +721,11 @@
   }
 
   let currentPlayer = null;
-  let groupIndex = 0;
-  const GROUP_KEYS = ['technics', 'athletics'];
 
   async function openPlayer(id) {
     const res = await get(`/api/clubs/${activeClubId}/players/${id}`);
     if (!res.ok) return;
     currentPlayer = res.player;
-    groupIndex = 0;
     $('roster').closest('.card').hidden = true;
     $('add-player').hidden = true;
     $('player-detail').hidden = false;
@@ -739,7 +736,7 @@
     const pos = p.positions;
     const side = [pos.side1, pos.side2].filter(Boolean).join(', ');
     $('pd-positions').textContent = `Hauptposition: ${pos.main ? POSITION_NAMES[pos.main] : '–'}` + (side ? ` · Nebenpositionen: ${side}` : '');
-    renderPlayerGroup();
+    renderPlayerChart();
     renderPlayerLevels();
     renderPlayerLevels();
     renderPlayerAttr();
@@ -748,13 +745,10 @@
     $('player-detail').scrollIntoView({ block: 'start' });
   }
 
-  function renderPlayerGroup() {
-    const group = currentPlayer.groups[groupIndex];
-    $('pd-view-name').textContent = group.name;
-    drawRadar($('pd-chart'), group.metrics.map((m) => ({ label: m.name, level: m.level })));
-    document.querySelectorAll('[data-pdot]').forEach((d) => {
-      d.classList.toggle('active', d.dataset.pdot === GROUP_KEYS[groupIndex]);
-    });
+  // Spider Chart der Attribute: die 6 Technik-Hauptattribute.
+  function renderPlayerChart() {
+    const technik = currentPlayer.groups[0];
+    drawRadar($('pd-chart'), technik.metrics.map((m) => ({ label: m.name, level: m.level })));
   }
 
   // Eine Zeile mit Name, Level, Balken und XP. Berechnete Hauptattribute haben keinen eigenen Balken.
@@ -800,12 +794,6 @@
   }
 
   // Level-Leiste: alle Fähigkeiten mit Level und Fortschritt, ohne Antippen.
-  function openChart(gi) {
-    groupIndex = gi;
-    renderPlayerGroup();
-    showPView('chart');
-  }
-
   // Attribute: die 6 Hauptattribute mit Level. Tippen öffnet den Spider Chart.
   function renderPlayerAttr() {
     const box = $('pd-attr');
@@ -814,7 +802,7 @@
     ul.className = 'metric-list';
     currentPlayer.groups[0].metrics.forEach((m) => {
       const li = document.createElement('li');
-      li.className = 'metric-item level-item tappable';
+      li.className = 'metric-item level-item';
       const top = document.createElement('div');
       top.className = 'level-top';
       const name = document.createElement('span');
@@ -823,7 +811,6 @@
       lvl.textContent = `Level ${m.level}`;
       top.append(name, lvl);
       li.appendChild(top);
-      li.addEventListener('click', () => openChart(0));
       ul.appendChild(li);
     });
     box.appendChild(ul);
@@ -860,6 +847,7 @@
     row.appendChild(top);
     first.appendChild(row);
     box.append(first, heading(athletics.name), listOf(athletics.metrics));
+    drawRadar($('pd-chart-ath'), [{ label: 'Technik', level: gesamt }, ...athletics.metrics.map((m) => ({ label: m.name, level: m.level }))]);
   }
 
   function showPView(name) {
@@ -874,25 +862,24 @@
 
 
 
-  (function bindPlayerSwipe() {
-    const area = $('pd-chart');
+  // Wischen über einen Spider Chart wechselt den Tab (Attribute <-> Athletics).
+  function bindSwipe(el, onSwipe) {
     let startX = null;
-    area.addEventListener('pointerdown', (e) => {
+    el.addEventListener('pointerdown', (e) => {
       startX = e.clientX;
     });
-    area.addEventListener('pointerup', (e) => {
-      if (startX === null || !currentPlayer) return;
+    el.addEventListener('pointerup', (e) => {
+      if (startX === null) return;
       const dx = e.clientX - startX;
       startX = null;
-      if (Math.abs(dx) > 40) {
-        groupIndex = (groupIndex + (dx < 0 ? 1 : currentPlayer.groups.length - 1)) % currentPlayer.groups.length;
-        renderPlayerGroup();
-      }
+      if (Math.abs(dx) > 40) onSwipe();
     });
-    area.addEventListener('pointercancel', () => {
+    el.addEventListener('pointercancel', () => {
       startX = null;
     });
-  })();
+  }
+  bindSwipe($('pd-chart'), () => showPView('levels'));
+  bindSwipe($('pd-chart-ath'), () => showPView('attribute'));
 
   $('close-player').addEventListener('click', () => {
     currentPlayer = null;
