@@ -6,7 +6,7 @@ const MAX_PLAYERS = 24;
 // Die Metriken eines Spielers, in zwei Ansichten. Start bei 0 XP.
 const PLAYER_METRICS = {
   technics: {
-    name: 'Technics',
+    name: 'Technik',
     metrics: [
       { key: 'SHO', name: 'Schuss' },
       { key: 'PAS', name: 'Passspiel' },
@@ -20,7 +20,7 @@ const PLAYER_METRICS = {
     name: 'PIFA E-Sport Athletics',
     metrics: [
       { key: 'GAMESENSE', name: 'Game-Sense' },
-      { key: 'SPIELWISSEN', name: 'Spiel-Wissen' },
+      { key: 'SPIELWISSEN', name: 'Spielwissen' },
       { key: 'MINDSET', name: 'Mindset' },
       { key: 'CHARISMA', name: 'Charisma' },
     ],

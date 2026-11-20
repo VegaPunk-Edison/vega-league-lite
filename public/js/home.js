@@ -726,15 +726,15 @@
     $('player-detail').hidden = false;
     const p = currentPlayer;
     $('pd-name').textContent = p.fullName;
-    $('pd-meta').textContent = `Vega ID ${p.vegaId} · Jahrgang ${p.birthYear} · ${p.country}`;
+    $('pd-meta').textContent = `Geburtsjahr ${p.birthYear} · ${p.country} · Vega ID ${p.vegaId}`;
+    $('pd-email').textContent = `E-Mail: ${p.email || '–'}`;
     const pos = p.positions;
     const side = [pos.side1, pos.side2].filter(Boolean).join(', ');
     $('pd-positions').textContent = `Hauptposition: ${pos.main ? POSITION_NAMES[pos.main] : '–'}` + (side ? ` · Nebenpositionen: ${side}` : '');
     renderPlayerGroup();
     renderPlayerLevels();
-    renderPlayerStats();
-    showPView('levels');
-    showPMain('attribute');
+    renderPlayerTechnik();
+    showPView('technik');
     $('player-detail').scrollIntoView({ block: 'start' });
   }
 
@@ -790,32 +790,61 @@
   }
 
   // Level-Leiste: alle Fähigkeiten mit Level und Fortschritt, ohne Antippen.
+  function openChart(gi) {
+    groupIndex = gi;
+    renderPlayerGroup();
+    showPView('chart');
+  }
+
+  // Eine Zeile mit Name und Level; tippen öffnet den Spider Chart der Gruppe.
+  function levelRow(r, gi) {
+    const li = document.createElement('li');
+    li.className = 'metric-item level-item tappable';
+    const top = document.createElement('div');
+    top.className = 'level-top';
+    const name = document.createElement('span');
+    name.textContent = r.name;
+    const lvl = document.createElement('strong');
+    lvl.textContent = `Level ${r.level}`;
+    top.append(name, lvl);
+    li.appendChild(top);
+    li.addEventListener('click', () => openChart(gi));
+    return li;
+  }
+
+  // Technik: jedes Hauptattribut mit seinen Unterattributen, danach die Sonstige-Werte.
+  function renderPlayerTechnik() {
+    const box = $('pd-technik');
+    box.innerHTML = '';
+    currentPlayer.groups[0].metrics.forEach((m) => {
+      const cat = currentPlayer.stats.find((c) => c.key.toUpperCase() === m.key);
+      box.append(heading(`${m.name} · Level ${m.level}`));
+      if (cat) box.appendChild(listOf(cat.subs));
+    });
+    box.append(heading('Sonstige'), listOf(currentPlayer.sonstige));
+  }
+
+  // Übersicht: die Hauptattribute mit Technik gesamt, danach Spielwissen, Mindset, Game-Sense, Charisma.
   function renderPlayerLevels() {
     const box = $('pd-levels');
     box.innerHTML = '';
-    currentPlayer.groups.forEach((g, gi) => {
-      const ul = listOf(g.metrics);
-      // Tippen auf ein Attribut öffnet die Spider-Chart-Ansicht seiner Gruppe.
-      ul.querySelectorAll('li').forEach((li) => {
-        li.classList.add('tappable');
-        li.addEventListener('click', () => {
-          groupIndex = gi;
-          renderPlayerGroup();
-          showPView('chart');
-        });
-      });
-      box.append(heading(g.name), ul);
+    const [technik, athletics] = currentPlayer.groups;
+    const levels = technik.metrics.map((m) => m.level);
+    const gesamt = Math.floor(levels.reduce((a, b) => a + b, 0) / levels.length);
+    const rows = document.createElement('ul');
+    rows.className = 'metric-list';
+    technik.metrics.forEach((m) => rows.appendChild(levelRow({ name: m.name, level: m.level }, 0)));
+    rows.appendChild(levelRow({ name: 'Technik gesamt', level: gesamt }, 0));
+    box.append(heading(technik.name), rows);
+    const aths = document.createElement('ul');
+    aths.className = 'metric-list';
+    athletics.metrics.forEach((m) => {
+      const li = levelItem(m);
+      li.classList.add('tappable');
+      li.addEventListener('click', () => openChart(1));
+      aths.appendChild(li);
     });
-  }
-
-  // Stats-Tab: Unterattribute je Oberkategorie, danach die Sonstige-Werte.
-  function renderPlayerStats() {
-    const box = $('pd-stats');
-    box.innerHTML = '';
-    currentPlayer.stats.forEach((cat) => {
-      box.append(heading(cat.name), listOf(cat.subs));
-    });
-    box.append(heading('Sonstige'), listOf(currentPlayer.sonstige));
+    box.append(heading(athletics.name), aths);
   }
 
   function showPView(name) {
@@ -827,14 +856,7 @@
 
   document.querySelectorAll('[data-pview]').forEach((b) => b.addEventListener('click', () => showPView(b.dataset.pview)));
 
-  function showPMain(name) {
-    document.querySelectorAll('[data-pmain]').forEach((b) => b.classList.toggle('active', b.dataset.pmain === name));
-    document.querySelectorAll('[data-pmain-panel]').forEach((p) => {
-      p.hidden = p.dataset.pmainPanel !== name;
-    });
-  }
 
-  document.querySelectorAll('[data-pmain]').forEach((b) => b.addEventListener('click', () => showPMain(b.dataset.pmain)));
 
   (function bindPlayerSwipe() {
     const area = $('pd-chart');

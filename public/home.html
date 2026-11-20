@@ -110,32 +110,37 @@
 
           <div id="player-detail" class="card" hidden>
             <button id="close-player" class="ghost-dark" type="button">Zurück zum Kader</button>
+            <p class="kicker">Info</p>
             <h2 id="pd-name" class="card-title"></h2>
             <p id="pd-meta" class="body-text"></p>
+            <p id="pd-email" class="body-text"></p>
             <p id="pd-positions" class="body-text"></p>
-            <nav class="subtabs subtabs-2" aria-label="Spielerbereich">
-              <button class="subtab active" data-pmain="attribute" type="button">Attribute</button>
-              <button class="subtab" data-pmain="stats" type="button">Stats</button>
+
+            <p class="kicker">Attribute</p>
+            <nav class="subtabs subtabs-2" aria-label="Attribute">
+              <button class="subtab active" data-pview="technik" type="button">Technik</button>
+              <button class="subtab" data-pview="levels" type="button">Übersicht</button>
             </nav>
-            <div data-pmain-panel="attribute">
+
+            <div data-pview-panel="technik">
+              <div id="pd-technik"></div>
+            </div>
+
+            <div data-pview-panel="levels" hidden>
+              <div id="pd-levels"></div>
+            </div>
+
             <div data-pview-panel="chart" hidden>
-              <button class="ghost-dark" data-pview="levels" type="button" style="margin-bottom: 10px;">← Alle Hauptattribute</button>
-              <p class="kicker" id="pd-view-name">Technics</p>
+              <button class="ghost-dark" data-pview="levels" type="button" style="margin-bottom: 10px;">← Übersicht</button>
+              <p class="kicker" id="pd-view-name">Technik</p>
               <div class="mini-wrap">
                 <div id="pd-chart" class="mini-chart"></div>
               </div>
-              <p class="swipe-hint">Wische über das Diagramm, um zwischen Technics und PIFA E-Sport Athletics zu wechseln.</p>
+              <p class="swipe-hint">Wische über das Diagramm, um zwischen Technik und PIFA E-Sport Athletics zu wechseln.</p>
               <div class="view-dots">
                 <span class="view-dot active" data-pdot="technics"></span>
                 <span class="view-dot" data-pdot="athletics"></span>
               </div>
-            </div>
-            <div data-pview-panel="levels">
-              <div id="pd-levels"></div>
-            </div>
-            </div>
-            <div data-pmain-panel="stats" hidden>
-              <div id="pd-stats"></div>
             </div>
           </div>
         </div>
