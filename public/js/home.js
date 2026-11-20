@@ -845,7 +845,7 @@
     const top = document.createElement('div');
     top.className = 'level-top';
     const name = document.createElement('span');
-    name.textContent = 'Technik (gesamt)';
+    name.textContent = 'Technik';
     const lvl = document.createElement('strong');
     lvl.textContent = `Level ${gesamt}`;
     top.append(name, lvl);
