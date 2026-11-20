@@ -62,11 +62,10 @@
 
   function renderGreeting() {
     if (!myName) return;
-    const registered = !!(myClub && myClub.registered);
+    // Sobald das Quiz fertig ist, gilt das Zeitalter Antike (unabhängig von der Anmeldung).
+    const era = myClub && myClub.era ? myClub.era : 'Antike';
     const role = myRoleName || 'Rookie';
-    $('greeting').textContent = registered
-      ? `Willkommen in ${myClub.era}, ${role}.`
-      : `Willkommen in Babylonia, ${role}.`;
+    $('greeting').textContent = `Willkommen in ${era}, ${role}.`;
     $('greeting-era').textContent = '';
   }
 
