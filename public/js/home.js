@@ -62,10 +62,50 @@
     if (!done) $('era-card').hidden = true;
   }
 
+  // Platzhalter-Wappen. Später kommt pro Ozean ein eigenes Bild dazu.
+  function crestSvg(district) {
+    const letter = district ? district.name.charAt(0).toUpperCase() : '?';
+    const NS2 = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS2, 'svg');
+    svg.setAttribute('viewBox', '0 0 80 92');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', district ? `Wappen ${district.name}` : 'Wappen');
+    const shield = document.createElementNS(NS2, 'path');
+    shield.setAttribute('d', 'M6 6 H74 V52 Q74 74 40 88 Q6 74 6 52 Z');
+    shield.setAttribute('fill', '#14213d');
+    shield.setAttribute('stroke', '#c9a227');
+    shield.setAttribute('stroke-width', '3');
+    const inner = document.createElementNS(NS2, 'path');
+    inner.setAttribute('d', 'M12 12 H68 V50 Q68 68 40 81 Q12 68 12 50 Z');
+    inner.setAttribute('fill', 'none');
+    inner.setAttribute('stroke', '#c9a227');
+    inner.setAttribute('stroke-width', '1');
+    const text = document.createElementNS(NS2, 'text');
+    text.setAttribute('x', '40');
+    text.setAttribute('y', '56');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('fill', '#c9a227');
+    text.setAttribute('font-size', '30');
+    text.setAttribute('font-family', 'Georgia, serif');
+    text.textContent = letter;
+    svg.append(shield, inner, text);
+    return svg;
+  }
+
+  function renderCrests(district) {
+    const header = $('crest');
+    const big = $('district-crest');
+    header.innerHTML = '';
+    header.appendChild(crestSvg(district));
+    big.innerHTML = '';
+    big.appendChild(crestSvg(district));
+  }
+
   function showOzean(district) {
     $('district-name').textContent = district.name;
     $('district-desc').textContent = district.desc;
     $('district').hidden = false;
+    renderCrests(district);
     $('welcome').hidden = true;
     $('quiz').hidden = true;
     setQuizMode(true);
@@ -842,6 +882,7 @@
     fillPositionSelects();
     myDistrictName = me.district ? me.district.name : null;
 
+    renderCrests(me.district);
     if (me.district) {
       showOzean(me.district);
     } else {

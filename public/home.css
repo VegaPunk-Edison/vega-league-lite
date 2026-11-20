@@ -466,3 +466,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   .progress span { transition: none; }
 }
+
+/* Wappen-Platzhalter (später: eigene Bilder pro Ozean) */
+.crest { width: 44px; height: 50px; flex: 0 0 auto; }
+.crest svg { width: 100%; height: 100%; display: block; }
+.crest-large { width: 110px; height: 126px; margin: 6px 0 10px; }
+.crest-large svg { width: 100%; height: 100%; display: block; }

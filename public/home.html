@@ -10,7 +10,7 @@
 <body>
   <header class="topbar">
     <div class="brand">VEGA LEAGUE</div>
-    <button id="logout" class="ghost" type="button">Abmelden</button>
+    <div id="crest" class="crest" aria-label="Wappen deines Ozeans"></div>
   </header>
 
   <main class="content">
@@ -39,6 +39,7 @@
       <!-- Ozean (wenn schon festgelegt) -->
       <div id="district" class="card" hidden>
         <p class="kicker">Dein Ozean</p>
+        <div id="district-crest" class="crest-large"></div>
         <h2 id="district-name" class="card-title"></h2>
         <p id="district-desc" class="body-text"></p>
       </div>
@@ -242,6 +243,7 @@
         <div class="card">
           <h2 class="card-title">Einstellungen</h2>
           <p class="body-text">Dieser Bereich kommt bald.</p>
+          <button id="logout" class="primary" type="button">Abmelden</button>
         </div>
       </div>
     </section>
