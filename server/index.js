@@ -15,7 +15,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const { validateField, FIELDS } = require('./validate');
 const { DISTRICTS, DISG_TEXT, WELCOME, publicQuestions, scoreAnswers, disgProfile } = require('./quiz');
 const { SKILLS, skillView, roleFor, levelFromXp } = require('./skills');
-const { MAX_PLAYERS, PLAYER_METRICS, ALL_METRIC_KEYS, POSITIONS, validatePlayer } = require('./players');
+const { MAX_PLAYERS, PLAYER_METRICS, ALL_METRIC_KEYS, POSITIONS, validatePlayer, STAT_CATEGORIES, STAT_SONSTIGE, STAT_METRIC_KEYS } = require('./players');
 const { PATHS, DIFFICULTY, bossesFor, parseBossId } = require('./bosses');
 
 
@@ -810,8 +810,32 @@ function playerDetail(p) {
       name: g.name,
       metrics: g.metrics.map((m) => skillView({ key: m.key, name: m.name, short: m.key }, xp[m.key] || 0)),
     })),
+    stats: STAT_CATEGORIES.map((c) => ({
+      key: c.key,
+      name: c.name,
+      subs: c.subs.map(([key, name]) => skillView({ key: `st_${key}`, name, short: key }, xp[`st_${key}`] || 0)),
+    })),
+    sonstige: STAT_SONSTIGE.map(([key, name]) => skillView({ key: `st_${key}`, name, short: key }, xp[`st_${key}`] || 0)),
   };
 }
+
+// Spieler-XP vergeben (nur Admin): Attribut- oder Stat-Schlüssel, ganze Zahl über 0.
+app.post('/api/admin/players/grant', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ ok: false, error: 'Nur für den Admin.' });
+  const vegaId = String(req.body?.vegaId ?? '').trim();
+  const metric = String(req.body?.metric ?? '').trim();
+  const xp = req.body?.xp;
+  const allowed = [...ALL_METRIC_KEYS, ...STAT_METRIC_KEYS];
+  if (!allowed.includes(metric)) return res.status(400).json({ ok: false, error: 'Unbekannte Metrik.' });
+  if (!Number.isInteger(xp) || xp <= 0 || xp > 1000000) {
+    return res.status(400).json({ ok: false, error: 'XP muss eine ganze Zahl über 0 sein.' });
+  }
+  const player = db.prepare('SELECT * FROM players WHERE vega_id = ?').get(vegaId);
+  if (!player) return res.status(404).json({ ok: false, error: 'Kein Spieler mit dieser Vega ID.' });
+  db.prepare(`INSERT INTO player_skills (player_id, metric, xp) VALUES (?, ?, ?)
+    ON CONFLICT(player_id, metric) DO UPDATE SET xp = xp + excluded.xp`).run(player.id, metric, xp);
+  res.json({ ok: true, player: playerDetail(db.prepare('SELECT * FROM players WHERE id = ?').get(player.id)) });
+});
 
 // Verein anlegen (bis zu drei pro VM).
 // Vereinsname: 3 bis 60 Zeichen, Leerzeichen zusammengefasst. null bei ungültigem Namen.

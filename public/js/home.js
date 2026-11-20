@@ -680,6 +680,7 @@
     $('pd-positions').textContent = `Hauptposition: ${pos.main ? POSITION_NAMES[pos.main] : '–'}` + (side ? ` · Nebenpositionen: ${side}` : '');
     renderPlayerGroup();
     renderPlayerLevels();
+    renderPlayerStats();
     showPView('chart');
     showPMain('attribute');
     $('player-detail').scrollIntoView({ block: 'start' });
@@ -694,40 +695,60 @@
     });
   }
 
+  // Eine Zeile mit Name, Level, Balken und XP.
+  function levelItem(m) {
+    const li = document.createElement('li');
+    li.className = 'metric-item level-item';
+    const top = document.createElement('div');
+    top.className = 'level-top';
+    const name = document.createElement('span');
+    name.textContent = m.name;
+    const lvl = document.createElement('strong');
+    lvl.textContent = `Level ${m.level}`;
+    top.append(name, lvl);
+    const bar = document.createElement('div');
+    bar.className = 'skill-bar';
+    const fill = document.createElement('span');
+    fill.style.width = `${m.progress}%`;
+    bar.appendChild(fill);
+    const info = document.createElement('div');
+    info.className = 'skill-xp';
+    info.textContent = `${m.xpIntoLevel} / ${m.xpForNext} XP · ${m.xp} XP gesamt`;
+    li.append(top, bar, info);
+    return li;
+  }
+
+  function heading(text) {
+    const p = document.createElement('p');
+    p.className = 'kicker';
+    p.textContent = text;
+    return p;
+  }
+
+  function listOf(items) {
+    const ul = document.createElement('ul');
+    ul.className = 'metric-list';
+    items.forEach((m) => ul.appendChild(levelItem(m)));
+    return ul;
+  }
+
   // Level-Leiste: alle Fähigkeiten mit Level und Fortschritt, ohne Antippen.
   function renderPlayerLevels() {
     const box = $('pd-levels');
     box.innerHTML = '';
     currentPlayer.groups.forEach((g) => {
-      const heading = document.createElement('p');
-      heading.className = 'kicker';
-      heading.textContent = g.name;
-      box.appendChild(heading);
-      const list = document.createElement('ul');
-      list.className = 'metric-list';
-      g.metrics.forEach((m) => {
-        const li = document.createElement('li');
-        li.className = 'metric-item level-item';
-        const top = document.createElement('div');
-        top.className = 'level-top';
-        const name = document.createElement('span');
-        name.textContent = m.name;
-        const lvl = document.createElement('strong');
-        lvl.textContent = `Level ${m.level}`;
-        top.append(name, lvl);
-        const bar = document.createElement('div');
-        bar.className = 'skill-bar';
-        const fill = document.createElement('span');
-        fill.style.width = `${m.progress}%`;
-        bar.appendChild(fill);
-        const info = document.createElement('div');
-        info.className = 'skill-xp';
-        info.textContent = `${m.xpIntoLevel} / ${m.xpForNext} XP · ${m.xp} XP gesamt`;
-        li.append(top, bar, info);
-        list.appendChild(li);
-      });
-      box.appendChild(list);
+      box.append(heading(g.name), listOf(g.metrics));
     });
+  }
+
+  // Stats-Tab: Unterattribute je Oberkategorie, danach die Sonstige-Werte.
+  function renderPlayerStats() {
+    const box = $('pd-stats');
+    box.innerHTML = '';
+    currentPlayer.stats.forEach((cat) => {
+      box.append(heading(cat.name), listOf(cat.subs));
+    });
+    box.append(heading('Sonstige'), listOf(currentPlayer.sonstige));
   }
 
   function showPView(name) {

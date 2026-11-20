@@ -90,4 +90,25 @@ function validatePlayer(body) {
   };
 }
 
-module.exports = { MAX_PLAYERS, PLAYER_METRICS, ALL_METRIC_KEYS, POSITIONS, validatePlayer };
+// Stats aus der ProClubs-App (eSports Athlete Center): sechs Oberkategorien mit Unterattributen
+// und vier Sonstige. Jeder Stat hat eigene XP (Schlüssel st_<key>) und zählt nicht in die
+// Level-Summen der Vereinstabelle.
+const STAT_CATEGORIES = [
+  { key: 'sho', name: 'Abschluss', subs: [['abschluss', 'Abschluss'], ['schusskraft', 'Schusskraft'], ['stellungsspiel', 'Stellungsspiel'], ['weitschuesse', 'Weitschüsse'], ['volley', 'Volley'], ['elfmeter', 'Elfmeter']] },
+  { key: 'pas', name: 'Passspiel', subs: [['kurzer_pass', 'Kurzer Pass'], ['langer_pass', 'Langer Pass'], ['uebersicht', 'Übersicht'], ['flanken', 'Flanken'], ['fs_praezision', 'FS-Präzision'], ['effet', 'Effet']] },
+  { key: 'dri', name: 'Ballkontrolle', subs: [['ballkontrolle', 'Ballkontrolle'], ['dribbling', 'Dribbling'], ['beweglichkeit', 'Beweglichkeit'], ['balance', 'Balance'], ['ruhe', 'Ruhe'], ['reaktion', 'Reaktion']] },
+  { key: 'phy', name: 'Physis', subs: [['ausdauer', 'Ausdauer'], ['staerke', 'Stärke'], ['sprungkraft', 'Sprungkraft'], ['aggressivitaet', 'Aggressivität']] },
+  { key: 'def', name: 'Verteidigung', subs: [['abfangen', 'Abfangen'], ['defensives_bewusstsein', 'Defensives Bewusstsein'], ['faire_zweikaempfe', 'Faire Zweikämpfe'], ['graetschen', 'Grätschen'], ['kopfball_praezision', 'Kopfball-Präzision']] },
+  { key: 'pac', name: 'Tempo', subs: [['beschleunigung', 'Beschleunigung'], ['sprinttempo', 'Sprinttempo']] },
+];
+const STAT_SONSTIGE = [['spezialbewegung', 'Spezialbewegung'], ['schwacher_fuss', 'Schwacher Fuß'], ['controller_handling', 'Controller Handling'], ['merkfaehigkeit', 'Merkfähigkeit']];
+
+const STAT_METRIC_KEYS = [
+  ...STAT_CATEGORIES.flatMap((c) => c.subs.map(([key]) => `st_${key}`)),
+  ...STAT_SONSTIGE.map(([key]) => `st_${key}`),
+];
+
+module.exports = {
+  MAX_PLAYERS, PLAYER_METRICS, ALL_METRIC_KEYS, POSITIONS, validatePlayer,
+  STAT_CATEGORIES, STAT_SONSTIGE, STAT_METRIC_KEYS,
+};
