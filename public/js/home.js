@@ -630,14 +630,14 @@
 
   // Kleines Radar für Spieler (eine Gruppe, Achsen = Metriken).
   function drawRadar(box, axes) {
-    const cx = 100;
-    const cy = 100;
-    const R = 62;
+    const cx = 190;
+    const cy = 150;
+    const R = 84;
     const max = Math.max(10, ...axes.map((a) => a.level));
     const n = axes.length;
     const angle = (i) => -90 + (360 / n) * i;
     box.innerHTML = '';
-    const svg = svgEl('svg', { viewBox: '0 0 200 200', role: 'img', 'aria-label': axes.map((a) => `${a.label} ${a.level}`).join(', ') });
+    const svg = svgEl('svg', { viewBox: '0 0 380 300', role: 'img', 'aria-label': axes.map((a) => `${a.label} ${a.level}`).join(', ') });
     [0.25, 0.5, 0.75, 1].forEach((f) => {
       const pts = axes.map((_, i) => polar(cx, cy, R * f, angle(i)).join(',')).join(' ');
       svg.appendChild(svgEl('polygon', { points: pts, fill: 'none', stroke: '#14213d', 'stroke-opacity': '0.25', 'stroke-width': '1' }));
@@ -653,7 +653,7 @@
       svg.appendChild(svgEl('circle', { cx: x, cy: y, r: '3', fill: '#14213d' }));
       const [lx, ly] = polar(cx, cy, R + 14, angle(i));
       const c = Math.cos((angle(i) * Math.PI) / 180);
-      const label = svgEl('text', { x: lx, y: ly + 4, 'text-anchor': c > 0.3 ? 'start' : c < -0.3 ? 'end' : 'middle', fill: '#111111', 'font-size': '10', 'font-weight': 'bold' });
+      const label = svgEl('text', { x: lx, y: ly + 4, 'text-anchor': c > 0.3 ? 'start' : c < -0.3 ? 'end' : 'middle', fill: '#111111', 'font-size': '12', 'font-weight': 'bold' });
       label.textContent = a.label;
       svg.appendChild(label);
     });
@@ -693,16 +693,13 @@
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'metric-row';
-      const key = document.createElement('span');
-      key.className = 'metric-key';
-      key.textContent = m.key;
       const name = document.createElement('span');
       name.className = 'metric-name';
       name.textContent = m.name;
       const lvl = document.createElement('span');
       lvl.className = 'metric-lvl';
       lvl.textContent = `L ${m.level}`;
-      row.append(key, name, lvl);
+      row.append(name, lvl);
       const detail = document.createElement('div');
       detail.className = 'metric-detail';
       detail.hidden = true;
@@ -721,7 +718,7 @@
       li.append(row, detail);
       list.appendChild(li);
     });
-    drawRadar($('pd-chart'), group.metrics.map((m) => ({ label: m.key, level: m.level })));
+    drawRadar($('pd-chart'), group.metrics.map((m) => ({ label: m.name, level: m.level })));
     document.querySelectorAll('[data-pdot]').forEach((d) => {
       d.classList.toggle('active', d.dataset.pdot === GROUP_KEYS[groupIndex]);
     });
@@ -1140,6 +1137,22 @@
     box.appendChild(svg);
   }
 
+  // Krone als Symbol für den Hauptboss.
+  function crownSvg() {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    const crown = document.createElementNS(NS, 'path');
+    crown.setAttribute('d', 'M3 8.5 7.5 12.5 12 6l4.5 6.5L21 8.5 19 18H5Z');
+    crown.setAttribute('fill', 'currentColor');
+    const base = document.createElementNS(NS, 'path');
+    base.setAttribute('d', 'M5 19.5h14v1.8H5Z');
+    base.setAttribute('fill', 'currentColor');
+    svg.append(crown, base);
+    return svg;
+  }
+
   function drawTimeline(boss) {
     const box = $('timeline');
     box.innerHTML = '';
@@ -1164,7 +1177,7 @@
       if (st.kind === 'main' && won === 3 && !boss.mainWon) state = 'aktuell';
       dot.classList.add(`st-${state}`);
       if (st.kind === 'main') dot.classList.add('st-main');
-      dot.textContent = st.kind === 'main' ? '★' : '';
+      if (st.kind === 'main') dot.appendChild(crownSvg());
       dot.title = st.label;
       const lbl = document.createElement('span');
       lbl.className = 'timeline-label';

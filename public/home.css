@@ -314,8 +314,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Spieler-Detail: links Metriken, rechts Mini-Chart */
 .player-split {
   display: grid;
-  grid-template-columns: 1fr 130px;
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 12px;
   align-items: start;
 }
 .metric-list { list-style: none; margin: 0; padding: 0; }
@@ -324,7 +324,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   width: 100%;
   font: inherit;
   display: grid;
-  grid-template-columns: 52px 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 6px;
   align-items: center;
   text-align: left;
@@ -339,7 +339,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .metric-name { font-size: 14px; }
 .metric-lvl { font-weight: bold; color: var(--navy); }
 .metric-detail { padding: 0 0 10px; }
-.mini-wrap { border: 1px solid var(--navy); background: var(--paper); padding: 4px; }
+.mini-wrap { border: 1px solid var(--navy); background: var(--paper); padding: 4px; width: 100%; max-width: 360px; margin: 0 auto; }
 .mini-chart svg { display: block; width: 100%; height: auto; }
 
 /* Anlauf: Pfad, Hauptboss, Minibosse */
@@ -580,3 +580,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Vereinseinstellungen */
 .subtabs-4 { grid-template-columns: repeat(2, 1fr); }
 .settings-logo { margin: 8px 0 12px; }
+
+/* Hauptboss-Symbol auf dem Zeitstrahl */
+.timeline-station.st-main { display: flex; align-items: center; justify-content: center; color: var(--navy); }
+.timeline-station.st-main svg { width: 18px; height: 18px; display: block; }
+.timeline-station.st-main { width: 34px; height: 34px; }
+.timeline-station.st-main svg { width: 22px; height: 22px; }
