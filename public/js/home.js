@@ -6,6 +6,8 @@
   // ---------- Tabs ----------
 
   function showTab(name) {
+    // Beim Öffnen des Tabs Verein ist nichts geöffnet, nur die Untertabs sind zu sehen.
+    if (name === 'verein') closeVSub();
     document.querySelectorAll('.panel').forEach((p) => {
       p.classList.toggle('active', p.dataset.panel === name);
     });
@@ -593,6 +595,12 @@
     showKSub('vega');
     await loadClubDetail();
   });
+
+  // Kein Untertab offen: nur die Leiste der Untertabs ist sichtbar.
+  function closeVSub() {
+    document.querySelectorAll('[data-vsub]').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('[data-vpanel]').forEach((p) => p.classList.remove('active'));
+  }
 
   function showVSub(name) {
     document.querySelectorAll('[data-vsub]').forEach((b) => b.classList.toggle('active', b.dataset.vsub === name));
@@ -1542,6 +1550,7 @@
       await showWelcome();
     }
     await renderVerein();
+    closeVSub();
   }
 
   $('logout').addEventListener('click', async () => {
