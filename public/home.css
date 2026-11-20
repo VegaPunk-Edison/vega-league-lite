@@ -468,9 +468,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 /* Wappen-Platzhalter (später: eigene Bilder pro Ozean) */
-.crest { width: 64px; height: 64px; flex: 0 0 auto; }
+.crest { width: 52px; height: 52px; flex: 0 0 auto; }
 .crest svg { width: 100%; height: 100%; display: block; }
-.crest-large { width: 160px; height: 160px; margin: 6px 0 10px; }
+.crest-large { width: 130px; height: 130px; margin: 6px 0 10px; }
 .crest-large svg { width: 100%; height: 100%; display: block; }
 
 /* Verein: Kopf, Vereinshaus-Kacheln */
