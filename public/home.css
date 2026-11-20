@@ -630,3 +630,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Verein-Kopf: Hype-Symbol direkt hinter dem Vereinsnamen */
 #club-title .hype-icon { display: inline-block; width: 20px; height: 20px; margin-left: 8px; vertical-align: -3px; }
+
+/* Hauptattribute: tippbar, öffnen die Spider-Chart-Ansicht */
+.tappable { cursor: pointer; }
+.tappable:hover, .tappable:focus-visible { background: rgba(201, 162, 39, 0.12); }

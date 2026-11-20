@@ -118,11 +118,8 @@
               <button class="subtab" data-pmain="stats" type="button">Stats</button>
             </nav>
             <div data-pmain-panel="attribute">
-            <nav class="subtabs subtabs-2" aria-label="Ansicht der Attribute">
-              <button class="subtab active" data-pview="chart" type="button">Spider Chart</button>
-              <button class="subtab" data-pview="levels" type="button">Level-Leiste</button>
-            </nav>
-            <div data-pview-panel="chart">
+            <div data-pview-panel="chart" hidden>
+              <button class="ghost-dark" data-pview="levels" type="button" style="margin-bottom: 10px;">← Alle Hauptattribute</button>
               <p class="kicker" id="pd-view-name">Technics</p>
               <div class="mini-wrap">
                 <div id="pd-chart" class="mini-chart"></div>
@@ -133,7 +130,7 @@
                 <span class="view-dot" data-pdot="athletics"></span>
               </div>
             </div>
-            <div data-pview-panel="levels" hidden>
+            <div data-pview-panel="levels">
               <div id="pd-levels"></div>
             </div>
             </div>

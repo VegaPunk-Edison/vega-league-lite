@@ -733,7 +733,7 @@
     renderPlayerGroup();
     renderPlayerLevels();
     renderPlayerStats();
-    showPView('chart');
+    showPView('levels');
     showPMain('attribute');
     $('player-detail').scrollIntoView({ block: 'start' });
   }
@@ -793,8 +793,18 @@
   function renderPlayerLevels() {
     const box = $('pd-levels');
     box.innerHTML = '';
-    currentPlayer.groups.forEach((g) => {
-      box.append(heading(g.name), listOf(g.metrics));
+    currentPlayer.groups.forEach((g, gi) => {
+      const ul = listOf(g.metrics);
+      // Tippen auf ein Attribut öffnet die Spider-Chart-Ansicht seiner Gruppe.
+      ul.querySelectorAll('li').forEach((li) => {
+        li.classList.add('tappable');
+        li.addEventListener('click', () => {
+          groupIndex = gi;
+          renderPlayerGroup();
+          showPView('chart');
+        });
+      });
+      box.append(heading(g.name), ul);
     });
   }
 
