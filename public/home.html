@@ -104,7 +104,12 @@
             <h2 id="pd-name" class="card-title"></h2>
             <p id="pd-meta" class="body-text"></p>
             <p id="pd-positions" class="body-text"></p>
-            <nav class="subtabs subtabs-2" aria-label="Ansicht des Spielers">
+            <nav class="subtabs subtabs-2" aria-label="Spielerbereich">
+              <button class="subtab active" data-pmain="attribute" type="button">Attribute</button>
+              <button class="subtab" data-pmain="stats" type="button">Stats</button>
+            </nav>
+            <div data-pmain-panel="attribute">
+            <nav class="subtabs subtabs-2" aria-label="Ansicht der Attribute">
               <button class="subtab active" data-pview="chart" type="button">Spider Chart</button>
               <button class="subtab" data-pview="levels" type="button">Level-Leiste</button>
             </nav>
@@ -121,6 +126,10 @@
             </div>
             <div data-pview-panel="levels" hidden>
               <div id="pd-levels"></div>
+            </div>
+            </div>
+            <div data-pmain-panel="stats" hidden>
+              <p class="body-text">Die Stats dieses Spielers erscheinen hier. Welche Werte gezeigt werden, wird noch festgelegt.</p>
             </div>
           </div>
         </div>

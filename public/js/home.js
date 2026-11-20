@@ -681,6 +681,7 @@
     renderPlayerGroup();
     renderPlayerLevels();
     showPView('chart');
+    showPMain('attribute');
     $('player-detail').scrollIntoView({ block: 'start' });
   }
 
@@ -737,6 +738,15 @@
   }
 
   document.querySelectorAll('[data-pview]').forEach((b) => b.addEventListener('click', () => showPView(b.dataset.pview)));
+
+  function showPMain(name) {
+    document.querySelectorAll('[data-pmain]').forEach((b) => b.classList.toggle('active', b.dataset.pmain === name));
+    document.querySelectorAll('[data-pmain-panel]').forEach((p) => {
+      p.hidden = p.dataset.pmainPanel !== name;
+    });
+  }
+
+  document.querySelectorAll('[data-pmain]').forEach((b) => b.addEventListener('click', () => showPMain(b.dataset.pmain)));
 
   (function bindPlayerSwipe() {
     const area = $('pd-chart');
