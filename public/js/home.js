@@ -63,9 +63,10 @@
   function renderGreeting() {
     if (!myName) return;
     const registered = !!(myClub && myClub.registered);
+    const role = myRoleName || 'Rookie';
     $('greeting').textContent = registered
-      ? `Willkommen in ${myClub.era}, ${myRoleName || 'Rookie'}.`
-      : `Willkommen in Babylonia, ${myName}.`;
+      ? `Willkommen in ${myClub.era}, ${role}.`
+      : `Willkommen in Babylonia, ${role}.`;
     $('greeting-era').textContent = '';
   }
 
