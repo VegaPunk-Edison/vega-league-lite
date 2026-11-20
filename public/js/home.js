@@ -55,10 +55,23 @@
     return { status: res.status, ...data };
   }
 
+  // Begrüßung: vor der Anmeldung in Babylonia, danach Zeitalter und Rolle.
+  let myName = null;
+  let myClub = null;
+  let myRoleName = null;
+
+  function renderGreeting() {
+    if (!myName) return;
+    const registered = !!(myClub && myClub.registered);
+    $('greeting').textContent = registered
+      ? `Willkommen in ${myClub.era}, ${myRoleName || 'Rookie'}.`
+      : `Willkommen in Babylonia, ${myName}.`;
+    $('greeting-era').textContent = '';
+  }
+
   // Vor dem Quiz nur die Willkommenskarte. Danach Begrüßung, Zeitalter und Rolle.
   function setQuizMode(done) {
     $('greeting-card').hidden = !done;
-    $('role-card').hidden = !done;
     if (!done) $('era-card').hidden = true;
   }
 
@@ -213,7 +226,8 @@
     const res = await post('/api/profile', body);
     if (res.ok) {
       fillProfile(res.profile);
-      $('greeting').textContent = `Willkommen, ${res.name}.`;
+      myName = res.name;
+      renderGreeting();
       $('subtab-name').textContent = (res.name || '').trim().split(/\s+/)[0] || 'Vorname';
       const msg = $('profile-message');
       msg.textContent = 'Deine Daten wurden gespeichert.';
@@ -426,11 +440,11 @@
 
   function renderRole(role) {
     if (!role) return;
-    $('role-name').textContent = role.name;
-    $('role-info').textContent = role.nextName
-      ? `Gesamt-Level ${role.totalLevel}. Nächste Rolle: ${role.nextName} ab Gesamt-Level ${role.nextAt}.`
-      : `Gesamt-Level ${role.totalLevel}. Du hast die höchste Rolle erreicht.`;
+    myRoleName = role.name;
+    $('info-role').textContent = `Deine Rolle: ${role.name}`;
+    renderGreeting();
   }
+
 
   function renderSkills(skills) {
     if (!skills) return;
@@ -502,10 +516,9 @@
 
   // Zeitalter erscheint erst, wenn der Verein in der Vega League angemeldet ist.
   function renderEra(club) {
+    myClub = club;
+    renderGreeting();
     const visible = !!(club && club.registered);
-    $('greeting-era').textContent = visible
-      ? `Willkommen in ${club.eraIntro}.`
-      : 'Willkommen in Babylonia.';
     $('era-card').hidden = !visible;
     if (!visible) return;
     $('era-name').textContent = club.era;
@@ -869,7 +882,7 @@
       window.location.href = '/';
       return;
     }
-    $('greeting').textContent = `Willkommen, ${me.name}.`;
+    myName = me.name;
     fillProfile(me.profile);
     const firstName = (me.name || '').trim().split(/\s+/)[0] || 'Vorname';
     $('subtab-name').textContent = firstName;
