@@ -542,24 +542,21 @@
   }
 
   // Spieler-XP: Vega ID, Nummer der Metrik (1 bis 10), XP.
-  const PLAYER_METRIC_KEYS = [
-    'SHO', 'PAS', 'DRI', 'PAC', 'DEF', 'PHY',
-    'GAMESENSE', 'SPIELWISSEN', 'MINDSET', 'CHARISMA',
-  ];
+  const PLAYER_METRIC_KEYS = ['GAMESENSE', 'SPIELWISSEN', 'MINDSET', 'CHARISMA'];
 
   async function adminGrantPlayerXp() {
     const vegaId = await Term.input({ prompt: 'VEGA ID>', placeholder: 'Vega ID des Spielers', maxLength: 40, autocomplete: 'off' });
     Term.clearStage();
-    Term.print('Attribute: ' + PLAYER_METRIC_KEYS.map((k, i) => `${i + 1} ${k}`).join(' · '), 'dim');
+    Term.print('Athletics: ' + PLAYER_METRIC_KEYS.map((k, i) => `${i + 1} ${k}`).join(' · '), 'dim');
     Term.print('Stats: Schlüssel wie st_abschluss, st_dribbling, st_spezialbewegung', 'dim');
-    const num = await Term.input({ prompt: 'METRIK>', placeholder: 'Nummer 1 bis 10 oder Stat-Schlüssel', maxLength: 40, autocomplete: 'off' });
+    const num = await Term.input({ prompt: 'METRIK>', placeholder: 'Nummer 1 bis 4 oder Stat-Schlüssel', maxLength: 40, autocomplete: 'off' });
     const amount = await Term.input({ prompt: 'XP>', placeholder: 'ganze Zahl über 0', inputmode: 'numeric', maxLength: 7, autocomplete: 'off' });
     Term.clearStage();
 
     const typed = num.trim();
     const metric = /^\d+$/.test(typed) ? PLAYER_METRIC_KEYS[Number(typed) - 1] : typed;
     if (!metric) {
-      Term.error('Bitte eine Nummer von 1 bis 10 oder einen Stat-Schlüssel eingeben.');
+      Term.error('Bitte eine Nummer von 1 bis 4 oder einen Stat-Schlüssel eingeben.');
       await Term.sleep(1500);
       return mainMenu();
     }

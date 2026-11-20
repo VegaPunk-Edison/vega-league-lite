@@ -695,7 +695,7 @@
     });
   }
 
-  // Eine Zeile mit Name, Level, Balken und XP.
+  // Eine Zeile mit Name, Level, Balken und XP. Berechnete Hauptattribute haben keinen eigenen Balken.
   function levelItem(m) {
     const li = document.createElement('li');
     li.className = 'metric-item level-item';
@@ -706,13 +706,18 @@
     const lvl = document.createElement('strong');
     lvl.textContent = `Level ${m.level}`;
     top.append(name, lvl);
+    const info = document.createElement('div');
+    info.className = 'skill-xp';
+    if (m.derived) {
+      info.textContent = 'Wird aus den Unterattributen berechnet';
+      li.append(top, info);
+      return li;
+    }
     const bar = document.createElement('div');
     bar.className = 'skill-bar';
     const fill = document.createElement('span');
     fill.style.width = `${m.progress}%`;
     bar.appendChild(fill);
-    const info = document.createElement('div');
-    info.className = 'skill-xp';
     info.textContent = `${m.xpIntoLevel} / ${m.xpForNext} XP · ${m.xp} XP gesamt`;
     li.append(top, bar, info);
     return li;

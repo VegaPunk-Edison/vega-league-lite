@@ -15,7 +15,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const { validateField, FIELDS } = require('./validate');
 const { DISTRICTS, DISG_TEXT, WELCOME, publicQuestions, scoreAnswers, disgProfile } = require('./quiz');
 const { SKILLS, skillView, roleFor, levelFromXp } = require('./skills');
-const { MAX_PLAYERS, PLAYER_METRICS, ALL_METRIC_KEYS, POSITIONS, validatePlayer, STAT_CATEGORIES, STAT_SONSTIGE, STAT_METRIC_KEYS } = require('./players');
+const { MAX_PLAYERS, PLAYER_METRICS, ALL_METRIC_KEYS, POSITIONS, validatePlayer, STAT_CATEGORIES, STAT_SONSTIGE, STAT_METRIC_KEYS, DERIVED_MAIN_KEYS, deriveMainLevels } = require('./players');
 const { PATHS, DIFFICULTY, bossesFor, parseBossId } = require('./bosses');
 
 
@@ -776,7 +776,8 @@ function playerXp(playerId) {
 // Summe der Level aller Metriken eines Spielers.
 function playerLevelSum(playerId) {
   const xp = playerXp(playerId);
-  return ALL_METRIC_KEYS.reduce((sum, key) => sum + levelFromXp(xp[key] || 0), 0);
+  const main = deriveMainLevels((key) => levelFromXp(xp[`st_${key}`] || 0));
+  return ALL_METRIC_KEYS.reduce((sum, key) => sum + (key in main ? main[key] : levelFromXp(xp[key] || 0)), 0);
 }
 
 // Summe der Level der sieben VM-Fähigkeiten eines Kontos.
@@ -796,6 +797,7 @@ function clubScore(club) {
 // Spieler mit Kontaktdaten, Positionen und allen Metriken.
 function playerDetail(p) {
   const xp = playerXp(p.id);
+  const main = deriveMainLevels((key) => levelFromXp(xp[`st_${key}`] || 0));
   return {
     id: p.id,
     fullName: p.full_name,
@@ -808,7 +810,11 @@ function playerDetail(p) {
     groups: Object.entries(PLAYER_METRICS).map(([key, g]) => ({
       key,
       name: g.name,
-      metrics: g.metrics.map((m) => skillView({ key: m.key, name: m.name, short: m.key }, xp[m.key] || 0)),
+      metrics: g.metrics.map((m) => (
+        m.key in main
+          ? { key: m.key, name: m.name, short: m.key, level: main[m.key], derived: true }
+          : skillView({ key: m.key, name: m.name, short: m.key }, xp[m.key] || 0)
+      )),
     })),
     stats: STAT_CATEGORIES.map((c) => ({
       key: c.key,
@@ -825,6 +831,9 @@ app.post('/api/admin/players/grant', (req, res) => {
   const vegaId = String(req.body?.vegaId ?? '').trim();
   const metric = String(req.body?.metric ?? '').trim();
   const xp = req.body?.xp;
+  if (DERIVED_MAIN_KEYS.includes(metric)) {
+    return res.status(400).json({ ok: false, error: 'Hauptattribute werden aus den Unterattributen berechnet. Vergib XP an einen Stat.' });
+  }
   const allowed = [...ALL_METRIC_KEYS, ...STAT_METRIC_KEYS];
   if (!allowed.includes(metric)) return res.status(400).json({ ok: false, error: 'Unbekannte Metrik.' });
   if (!Number.isInteger(xp) || xp <= 0 || xp > 1000000) {

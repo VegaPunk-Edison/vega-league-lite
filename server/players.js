@@ -90,16 +90,18 @@ function validatePlayer(body) {
   };
 }
 
-// Stats aus der ProClubs-App (eSports Athlete Center): sechs Oberkategorien mit Unterattributen
-// und vier Sonstige. Jeder Stat hat eigene XP (Schlüssel st_<key>) und zählt nicht in die
-// Level-Summen der Vereinstabelle.
+// Stats aus der ProClubs-App (eSports Athlete Center, src/lib/categories.js): sechs
+// Oberkategorien mit Unterattributen (Gewicht 1 bis 3) und vier Sonstige. Jeder Stat hat
+// eigene XP (Schlüssel st_<key>). Die Oberkategorien SHO, PAS, DRI, PHY, DEF, PAC werden nicht
+// selbst gelevelt, sondern aus den Unterattributen berechnet. Stats zählen nicht in die
+// Tabellen-Summen direkt ein, die Hauptattribute schon (über ihr berechnetes Level).
 const STAT_CATEGORIES = [
-  { key: 'sho', name: 'Abschluss', subs: [['abschluss', 'Abschluss'], ['schusskraft', 'Schusskraft'], ['stellungsspiel', 'Stellungsspiel'], ['weitschuesse', 'Weitschüsse'], ['volley', 'Volley'], ['elfmeter', 'Elfmeter']] },
-  { key: 'pas', name: 'Passspiel', subs: [['kurzer_pass', 'Kurzer Pass'], ['langer_pass', 'Langer Pass'], ['uebersicht', 'Übersicht'], ['flanken', 'Flanken'], ['fs_praezision', 'FS-Präzision'], ['effet', 'Effet']] },
-  { key: 'dri', name: 'Ballkontrolle', subs: [['ballkontrolle', 'Ballkontrolle'], ['dribbling', 'Dribbling'], ['beweglichkeit', 'Beweglichkeit'], ['balance', 'Balance'], ['ruhe', 'Ruhe'], ['reaktion', 'Reaktion']] },
-  { key: 'phy', name: 'Physis', subs: [['ausdauer', 'Ausdauer'], ['staerke', 'Stärke'], ['sprungkraft', 'Sprungkraft'], ['aggressivitaet', 'Aggressivität']] },
-  { key: 'def', name: 'Verteidigung', subs: [['abfangen', 'Abfangen'], ['defensives_bewusstsein', 'Defensives Bewusstsein'], ['faire_zweikaempfe', 'Faire Zweikämpfe'], ['graetschen', 'Grätschen'], ['kopfball_praezision', 'Kopfball-Präzision']] },
-  { key: 'pac', name: 'Tempo', subs: [['beschleunigung', 'Beschleunigung'], ['sprinttempo', 'Sprinttempo']] },
+  { key: 'sho', name: 'Abschluss', subs: [['abschluss', 'Abschluss', 3], ['schusskraft', 'Schusskraft', 2], ['stellungsspiel', 'Stellungsspiel', 2], ['weitschuesse', 'Weitschüsse', 1], ['volley', 'Volley', 1], ['elfmeter', 'Elfmeter', 1]] },
+  { key: 'pas', name: 'Passspiel', subs: [['kurzer_pass', 'Kurzer Pass', 3], ['langer_pass', 'Langer Pass', 2], ['uebersicht', 'Übersicht', 2], ['flanken', 'Flanken', 1], ['fs_praezision', 'FS-Präzision', 1], ['effet', 'Effet', 1]] },
+  { key: 'dri', name: 'Ballkontrolle', subs: [['ballkontrolle', 'Ballkontrolle', 3], ['dribbling', 'Dribbling', 3], ['beweglichkeit', 'Beweglichkeit', 2], ['balance', 'Balance', 2], ['ruhe', 'Ruhe', 2], ['reaktion', 'Reaktion', 2]] },
+  { key: 'phy', name: 'Physis', subs: [['ausdauer', 'Ausdauer', 2], ['staerke', 'Stärke', 2], ['sprungkraft', 'Sprungkraft', 1], ['aggressivitaet', 'Aggressivität', 1]] },
+  { key: 'def', name: 'Verteidigung', subs: [['abfangen', 'Abfangen', 3], ['defensives_bewusstsein', 'Defensives Bewusstsein', 3], ['faire_zweikaempfe', 'Faire Zweikämpfe', 2], ['graetschen', 'Grätschen', 2], ['kopfball_praezision', 'Kopfball-Präzision', 1]] },
+  { key: 'pac', name: 'Tempo', subs: [['beschleunigung', 'Beschleunigung', 3], ['sprinttempo', 'Sprinttempo', 3]] },
 ];
 const STAT_SONSTIGE = [['spezialbewegung', 'Spezialbewegung'], ['schwacher_fuss', 'Schwacher Fuß'], ['controller_handling', 'Controller Handling'], ['merkfaehigkeit', 'Merkfähigkeit']];
 
@@ -108,7 +110,22 @@ const STAT_METRIC_KEYS = [
   ...STAT_SONSTIGE.map(([key]) => `st_${key}`),
 ];
 
+// Hauptattribute (SHO, PAS, DRI, PHY, DEF, PAC): Level aus den Unterattributen.
+const DERIVED_MAIN_KEYS = STAT_CATEGORIES.map((c) => c.key.toUpperCase());
+
+// levelOfStat(key) liefert das Level eines Unterattributs (ohne Präfix).
+// Ergebnis: gewichteter Durchschnitt der Unterattribut-Level, abgerundet.
+function deriveMainLevels(levelOfStat) {
+  return Object.fromEntries(
+    STAT_CATEGORIES.map((c) => {
+      const totalWeight = c.subs.reduce((sum, [, , w]) => sum + w, 0);
+      const weighted = c.subs.reduce((sum, [key, , w]) => sum + w * levelOfStat(key), 0);
+      return [c.key.toUpperCase(), Math.floor(weighted / totalWeight)];
+    })
+  );
+}
+
 module.exports = {
   MAX_PLAYERS, PLAYER_METRICS, ALL_METRIC_KEYS, POSITIONS, validatePlayer,
-  STAT_CATEGORIES, STAT_SONSTIGE, STAT_METRIC_KEYS,
+  STAT_CATEGORIES, STAT_SONSTIGE, STAT_METRIC_KEYS, DERIVED_MAIN_KEYS, deriveMainLevels,
 };
