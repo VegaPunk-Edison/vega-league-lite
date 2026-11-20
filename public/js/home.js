@@ -107,17 +107,12 @@
 
   function renderCrests(district) {
     const header = $('crest');
-    const big = $('district-crest');
     header.innerHTML = '';
     header.appendChild(crestSvg(district));
-    big.innerHTML = '';
-    big.appendChild(crestSvg(district));
   }
 
   function showOzean(district) {
-    $('district-name').textContent = district.name;
-    $('district-desc').textContent = district.desc;
-    $('district').hidden = false;
+    $('info-ozean').textContent = `Dein Ozean: ${district.name}. ${district.desc}`;
     renderCrests(district);
     $('welcome').hidden = true;
     $('quiz').hidden = true;
