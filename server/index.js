@@ -718,6 +718,14 @@ function ownerOf(club) {
   return db.prepare('SELECT id, name, district FROM users WHERE id = ?').get(club.owner_id);
 }
 
+// Hype-Stufen: 0 = Aus, 1 = Lauwarm, 2 = Warm, 3 = Heiß. Die Grenzen sind vorläufig.
+function hypeStageFor(value) {
+  if (value <= 0) return 0;
+  if (value < 34) return 1;
+  if (value < 67) return 2;
+  return 3;
+}
+
 function clubSummary(club) {
   const owner = ownerOf(club);
   const count = playerCount(club.id);
@@ -739,6 +747,8 @@ function clubSummary(club) {
     district: owner ? owner.district : null,
     canUnlock: !club.registered && count >= MIN_PLAYERS_FOR_UNLOCK,
     minPlayers: MIN_PLAYERS_FOR_UNLOCK,
+    hype: club.hype || 0,
+    hypeStage: hypeStageFor(club.hype || 0),
   };
 }
 

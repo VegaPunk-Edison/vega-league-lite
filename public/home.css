@@ -614,3 +614,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Zeitstrahl endet vor der Krone, damit die Linie nicht durch das Symbol läuft */
 .timeline-line { right: 24px; }
+
+/* Hype: Flamme */
+.subtabs-5 { grid-template-columns: repeat(2, 1fr); }
+.hype-flame { display: flex; justify-content: center; margin: 12px 0 8px; }
+.hype-icon { width: 120px; height: 120px; object-fit: contain; display: block; }

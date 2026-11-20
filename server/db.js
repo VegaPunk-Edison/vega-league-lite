@@ -130,6 +130,7 @@ db.exec(`
     logo: 'TEXT',
     formation: 'TEXT',
     slots: 'TEXT',
+    hype: 'INTEGER NOT NULL DEFAULT 0',
   };
   for (const [col, type] of Object.entries(add)) {
     if (!clubColumns.includes(col)) db.exec(`ALTER TABLE clubs ADD COLUMN ${col} ${type}`);

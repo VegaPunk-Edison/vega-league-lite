@@ -539,7 +539,7 @@
     const hasClubs = myClubs.length > 0;
     $('club-area').hidden = false;
     $('no-club').hidden = hasClubs;
-    document.querySelectorAll('[data-vsub="kader"], [data-vsub="formation"], [data-vsub="einstellungen"]').forEach((b) => {
+    document.querySelectorAll('[data-vsub="kader"], [data-vsub="formation"], [data-vsub="hype"], [data-vsub="einstellungen"]').forEach((b) => {
       b.hidden = !hasClubs;
     });
     renderEra();
@@ -575,6 +575,7 @@
     document.querySelectorAll('[data-vpanel]').forEach((p) => p.classList.toggle('active', p.dataset.vpanel === name));
     if (name === 'vereinshaus') renderClubGrid();
     if (name === 'formation' && activeClub) renderFormation(activeClub);
+    if (name === 'hype' && activeClub) renderHype(activeClub);
     if (name === 'einstellungen' && activeClub) renderSettings(activeClub);
   }
 
@@ -979,6 +980,39 @@
       await loadClubDetail();
     }
   });
+
+  // ---------- Hype: Flamme mit vier Stufen ----------
+
+  const HYPE_STAGES = ['Aus', 'Lauwarm', 'Warm', 'Heiß'];
+  const HYPE_COLORS = ['#8a8f98', '#e7cf7a', '#f59e0b', '#ef4444'];
+
+  // Platzhalter-Flamme, solange für die Stufe kein GIF hochgeladen ist.
+  function flameSvg(stage) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 64 80');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', `Hype: ${HYPE_STAGES[stage]}`);
+    svg.classList.add('hype-icon');
+    const flame = document.createElementNS(NS, 'path');
+    flame.setAttribute('d', 'M32 4C40 20 56 30 56 52a24 24 0 0 1-48 0c0-12 6-20 12-28 2 8 6 12 10 14C28 26 30 16 32 4Z');
+    flame.setAttribute('fill', HYPE_COLORS[stage]);
+    svg.appendChild(flame);
+    return svg;
+  }
+
+  function renderHype(res) {
+    const stage = res.club.hypeStage || 0;
+    const box = $('hype-flame');
+    box.innerHTML = '';
+    const img = document.createElement('img');
+    img.className = 'hype-icon';
+    img.alt = `Hype: ${HYPE_STAGES[stage]}`;
+    img.src = `/hype/${stage}.gif`;
+    img.onerror = () => img.replaceWith(flameSvg(stage));
+    box.appendChild(img);
+    $('hype-label').textContent = HYPE_STAGES[stage];
+  }
 
   // ---------- Logo und Vereinseinstellungen ----------
 

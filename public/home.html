@@ -62,10 +62,11 @@
       </div>
 
       <div id="club-area" hidden>
-        <nav class="subtabs subtabs-4" aria-label="Verein Unterbereiche">
+        <nav class="subtabs subtabs-5" aria-label="Verein Unterbereiche">
           <button class="subtab active" data-vsub="kader" type="button">Kader</button>
           <button class="subtab" data-vsub="formation" type="button">Formation</button>
           <button class="subtab" data-vsub="vereinshaus" type="button">Vereinshaus</button>
+          <button class="subtab" data-vsub="hype" type="button">Hype</button>
           <button class="subtab" data-vsub="einstellungen" type="button">Vereinstellung</button>
         </nav>
 
@@ -172,6 +173,14 @@
               <button id="cancel-add-club" class="ghost-dark" type="button">Abbrechen</button>
               <p id="club-create-message" class="status" hidden></p>
             </form>
+          </div>
+        </div>
+
+        <div class="subpanel" data-vpanel="hype">
+          <div class="card">
+            <p class="kicker">Hype</p>
+            <div id="hype-flame" class="hype-flame"></div>
+            <h2 id="hype-label" class="card-title"></h2>
           </div>
         </div>
 
