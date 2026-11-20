@@ -627,3 +627,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .crest-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .header-hype { min-height: 18px; display: flex; justify-content: center; }
 .header-hype .hype-icon { width: 18px; height: 18px; }
+
+/* Verein-Kopf: Hype-Symbol direkt hinter dem Vereinsnamen */
+#club-title .hype-icon { display: inline-block; width: 20px; height: 20px; margin-left: 8px; vertical-align: -3px; }

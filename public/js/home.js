@@ -552,13 +552,7 @@
     box.innerHTML = '';
     const club = myClubs.find((c) => c.id === activeClubId) || myClubs[0];
     if (!club) return;
-    const stage = club.hypeStage || 0;
-    const img = document.createElement('img');
-    img.className = 'hype-icon';
-    img.alt = `Hype: ${HYPE_STAGES[stage]}`;
-    img.src = `/hype/${stage}.gif`;
-    img.onerror = () => img.replaceWith(flameSvg(stage));
-    box.appendChild(img);
+    box.appendChild(hypeIconEl(club.hypeStage || 0));
   }
 
   async function refreshClubs() {
@@ -644,7 +638,10 @@
 
   function renderKader(res) {
     const hasClub = !!(res && res.club);
-    $('club-title').textContent = hasClub ? res.club.name : '';
+    const title = $('club-title');
+    title.textContent = hasClub ? res.club.name : '';
+    // Hype-Symbol direkt hinter dem Vereinsnamen
+    if (hasClub) title.appendChild(hypeIconEl(res.club.hypeStage || 0));
     $('club-meta').textContent = hasClub
       ? `Gegründet ${res.club.founded} · Vereinsmanager ${res.club.manager} · ${res.club.members} Mitglieder`
       : '';
@@ -1031,16 +1028,21 @@
     return svg;
   }
 
-  function renderHype(res) {
-    const stage = res.club.hypeStage || 0;
-    const box = $('hype-flame');
-    box.innerHTML = '';
+  // Hype-Symbol einer Stufe: GIF aus /hype/, sonst die Platzhalter-Flamme.
+  function hypeIconEl(stage) {
     const img = document.createElement('img');
     img.className = 'hype-icon';
     img.alt = `Hype: ${HYPE_STAGES[stage]}`;
     img.src = `/hype/${stage}.gif`;
     img.onerror = () => img.replaceWith(flameSvg(stage));
-    box.appendChild(img);
+    return img;
+  }
+
+  function renderHype(res) {
+    const stage = res.club.hypeStage || 0;
+    const box = $('hype-flame');
+    box.innerHTML = '';
+    box.appendChild(hypeIconEl(stage));
     $('hype-label').textContent = HYPE_STAGES[stage];
   }
 
