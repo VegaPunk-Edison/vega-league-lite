@@ -285,6 +285,8 @@
 
   // ---------- Anmeldung ----------
 
+  const ADMIN_LOGIN = '__admin__';
+
   async function loginFlow(retry) {
     const state = await apiGet('/api/state');
     if (!retry) await Term.newPage();
@@ -301,6 +303,9 @@
       // Bekanntes Gerät: nur Code. Neues Gerät: E-Mail und Code.
       name = state.deviceKnown ? await loginWithPin() : await loginWithEmailPin();
     }
+
+    // Admin-Schlüssel eingegeben: direkt ins Terminal-Menü mit den Admin-Funktionen.
+    if (name === ADMIN_LOGIN) return mainMenu();
 
     if (!name) {
       await Term.sleep(900);
@@ -375,7 +380,7 @@
     const [result] = await Promise.all([apiPost('/api/login/pin', { pin }), Term.sleep(1500)]);
     if (result.ok) {
       fp.success();
-      return result.name;
+      return result.admin ? ADMIN_LOGIN : result.name;
     }
     fp.fail();
     Term.error(result.error || 'Anmeldung fehlgeschlagen.');
@@ -451,6 +456,10 @@
     // Startmenü: nur Registrieren und Anmelden. Admin-Funktionen sind hier nicht sichtbar.
     const labels = ['Registrieren', 'Anmelden'];
     const actions = [registerFlow, () => loginFlow(false)];
+    if (state.isAdmin) {
+      labels.push('Demo-Konto', 'Demo zurücksetzen', 'XP vergeben', 'Spieler-XP', 'Bosssieg', 'Admin abmelden');
+      actions.push(demoLogin, adminResetDemo, adminGrantXp, adminGrantPlayerXp, adminBossWin, adminLogout);
+    }
     const choice = await Term.choose(labels);
     return actions[choice]();
   }

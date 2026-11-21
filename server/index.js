@@ -510,6 +510,14 @@ app.post('/api/login/pin', (req, res) => {
   }
 
   const pin = String(req.body?.pin ?? '');
+  // Admin-Zugang: der Admin-Schlüssel (6 Ziffern) wird über den Code-Login auf einem bekannten Gerät eingegeben.
+  if (ADMIN_KEY && /^\d{6}$/.test(pin) && keysMatch(pin, ADMIN_KEY)) {
+    db.prepare('UPDATE devices SET pin_failures = 0, locked_until = 0 WHERE token_hash = ?').run(device.token_hash);
+    const adminToken = randomToken();
+    db.prepare('INSERT INTO admin_sessions (token_hash, expires_at) VALUES (?, ?)').run(hashToken(adminToken), now + ADMIN_SESSION_MS);
+    res.cookie('pifa_admin', adminToken, cookieOpts(req, ADMIN_SESSION_MS));
+    return res.json({ ok: true, admin: true });
+  }
   const valid = /^\d{6}$/.test(pin) && verifyPin(pin, user.pin_hash);
   if (!valid) {
     const failures = device.pin_failures + 1;
