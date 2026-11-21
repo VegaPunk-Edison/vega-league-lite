@@ -15,6 +15,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const { validateField, FIELDS } = require('./validate');
 const { DISTRICTS, DISG_TEXT, WELCOME, publicQuestions, scoreAnswers, disgProfile } = require('./quiz');
 const { SKILLS, skillView, roleFor, levelFromXp } = require('./skills');
+const tiktok = require('./tiktok');
 const { MAX_PLAYERS, PLAYER_METRICS, ALL_METRIC_KEYS, POSITIONS, validatePlayer, STAT_CATEGORIES, STAT_SONSTIGE, STAT_METRIC_KEYS, DERIVED_MAIN_KEYS, deriveMainLevels } = require('./players');
 const { PATHS, DIFFICULTY, bossesFor, parseBossId } = require('./bosses');
 
@@ -1125,6 +1126,75 @@ app.post('/api/admin/clubs/win', (req, res) => {
   }
   const updated = db.prepare('SELECT * FROM clubs WHERE id = ?').get(club.id);
   res.json({ ok: true, club: clubSummary(updated), boss: bossState(updated, null) });
+});
+
+// ---------- TikTok: Konto verknüpfen und Videos lesen ----------
+
+app.get('/api/tiktok/status', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const row = db.prepare('SELECT user_id FROM tiktok_accounts WHERE user_id = ?').get(user.id);
+  res.json({ ok: true, configured: tiktok.isConfigured(), connected: !!row });
+});
+
+app.post('/api/tiktok/connect', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  if (!tiktok.isConfigured()) {
+    return res.status(503).json({ ok: false, error: 'TikTok ist auf dem Server noch nicht eingerichtet.' });
+  }
+  res.json({ ok: true, url: tiktok.startAuth(user.id) });
+});
+
+// Ziel der Weiterleitung von TikTok nach der Zustimmung.
+app.get('/api/tiktok/callback', async (req, res) => {
+  const entry = tiktok.takeAuth(String(req.query.state || ''));
+  const code = String(req.query.code || '');
+  if (!entry || !code) return res.redirect('/home.html?tiktok=fehler');
+  try {
+    const row = tiktok.tokenRow(await tiktok.exchangeCode(code, entry.verifier));
+    db.prepare(`INSERT INTO tiktok_accounts (user_id, open_id, access_token, refresh_token, expires_at, refresh_expires_at, scope)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET open_id = excluded.open_id, access_token = excluded.access_token,
+        refresh_token = excluded.refresh_token, expires_at = excluded.expires_at,
+        refresh_expires_at = excluded.refresh_expires_at, scope = excluded.scope`).run(
+      entry.userId, row.open_id, row.access_token, row.refresh_token, row.expires_at, row.refresh_expires_at, row.scope
+    );
+    res.redirect('/home.html?tiktok=ok');
+  } catch (err) {
+    console.error('TikTok-Verknüpfung fehlgeschlagen:', err.message);
+    res.redirect('/home.html?tiktok=fehler');
+  }
+});
+
+app.post('/api/tiktok/disconnect', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  db.prepare('DELETE FROM tiktok_accounts WHERE user_id = ?').run(user.id);
+  res.json({ ok: true });
+});
+
+app.get('/api/tiktok/videos', async (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Nicht angemeldet.' });
+  const row = db.prepare('SELECT * FROM tiktok_accounts WHERE user_id = ?').get(user.id);
+  if (!row) return res.status(404).json({ ok: false, error: 'Kein TikTok-Konto verknüpft.' });
+  try {
+    let accessToken = row.access_token;
+    if (row.expires_at - Date.now() < 60 * 1000) {
+      if (row.refresh_expires_at < Date.now()) {
+        return res.status(401).json({ ok: false, error: 'Die TikTok-Verknüpfung ist abgelaufen. Bitte neu verknüpfen.' });
+      }
+      const fresh = tiktok.tokenRow(await tiktok.refreshAccess(row.refresh_token));
+      db.prepare('UPDATE tiktok_accounts SET access_token = ?, refresh_token = ?, expires_at = ?, refresh_expires_at = ? WHERE user_id = ?').run(
+        fresh.access_token, fresh.refresh_token, fresh.expires_at, fresh.refresh_expires_at, user.id
+      );
+      accessToken = fresh.access_token;
+    }
+    res.json({ ok: true, videos: await tiktok.listVideos(accessToken) });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.message });
+  }
 });
 
 // ---------- Fehler ----------

@@ -181,4 +181,17 @@ db.exec(`
   );
 `);
 
+// TikTok-Verknüpfung je Konto (Tokens nur für den Server).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tiktok_accounts (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    open_id TEXT,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    refresh_expires_at INTEGER NOT NULL,
+    scope TEXT
+  );
+`);
+
 module.exports = db;

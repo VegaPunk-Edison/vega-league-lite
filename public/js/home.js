@@ -1538,7 +1538,69 @@
     }
     await renderVerein();
     closeVSub();
+    await renderTikTok();
   }
+
+  // ---------- Social Media: TikTok ----------
+
+  function tiktokMessage(text, ok) {
+    const msg = $('tiktok-message');
+    msg.textContent = text;
+    msg.className = ok ? 'status' : 'status error';
+    msg.hidden = false;
+  }
+
+  async function renderTikTok() {
+    const st = await get('/api/tiktok/status');
+    if (!st.ok) return;
+    $('tiktok-status').textContent = !st.configured
+      ? 'TikTok ist auf dem Server noch nicht eingerichtet.'
+      : st.connected ? 'TikTok ist verknüpft.' : 'TikTok ist noch nicht verknüpft.';
+    $('tiktok-connect').hidden = !st.configured || st.connected;
+    $('tiktok-videos').hidden = !st.connected;
+    $('tiktok-disconnect').hidden = !st.connected;
+  }
+
+  $('tiktok-connect').addEventListener('click', async () => {
+    const res = await post('/api/tiktok/connect');
+    if (res.ok) window.location.href = res.url;
+    else tiktokMessage(res.error || 'Verknüpfung nicht möglich.', false);
+  });
+
+  $('tiktok-videos').addEventListener('click', async () => {
+    const res = await get('/api/tiktok/videos');
+    const list = $('tiktok-list');
+    list.innerHTML = '';
+    if (!res.ok) {
+      tiktokMessage(res.error || 'Die Videos konnten nicht geladen werden.', false);
+      return;
+    }
+    if (!res.videos.length) tiktokMessage('Keine Videos gefunden.', true);
+    res.videos.forEach((v) => {
+      const li = document.createElement('li');
+      li.className = 'metric-item level-item';
+      const date = v.createdAt ? new Date(v.createdAt).toLocaleDateString('de-DE') : '–';
+      li.textContent = `${date} · ${v.title || 'Ohne Titel'} · ${v.likes} Likes · ${v.comments} Kommentare`;
+      list.appendChild(li);
+    });
+  });
+
+  $('tiktok-disconnect').addEventListener('click', async () => {
+    await post('/api/tiktok/disconnect');
+    $('tiktok-list').innerHTML = '';
+    tiktokMessage('Die Verknüpfung wurde gelöst.', true);
+    await renderTikTok();
+  });
+
+  // Rückkehr von TikTok: Meldung anzeigen.
+  (function showTikTokResult() {
+    const result = new URLSearchParams(window.location.search).get('tiktok');
+    if (!result) return;
+    setTimeout(() => {
+      tiktokMessage(result === 'ok' ? 'TikTok ist jetzt verknüpft.' : 'Die Verknüpfung mit TikTok hat nicht geklappt.', result === 'ok');
+    }, 0);
+    window.history.replaceState({}, '', '/home.html');
+  })();
 
   $('logout').addEventListener('click', async () => {
     await post('/api/logout');
