@@ -1055,7 +1055,7 @@
     svg.setAttribute('viewBox', '0 0 64 80');
     svg.setAttribute('role', 'img');
     svg.setAttribute('aria-label', `Hype: ${HYPE_STAGES[stage]}`);
-    svg.classList.add('hype-icon');
+    svg.classList.add('hype-icon', `hype-${stage}`);
     const flame = document.createElementNS(NS, 'path');
     flame.setAttribute('d', 'M32 4C40 20 56 30 56 52a24 24 0 0 1-48 0c0-12 6-20 12-28 2 8 6 12 10 14C28 26 30 16 32 4Z');
     flame.setAttribute('fill', HYPE_COLORS[stage]);
@@ -1068,7 +1068,8 @@
     const img = document.createElement('img');
     img.className = 'hype-icon';
     img.alt = `Hype: ${HYPE_STAGES[stage]}`;
-    img.src = `/hype/${stage}.gif`;
+    img.src = `/hype/${stage}.png`;
+    img.classList.add(`hype-${stage}`);
     img.onerror = () => img.replaceWith(flameSvg(stage));
     return img;
   }

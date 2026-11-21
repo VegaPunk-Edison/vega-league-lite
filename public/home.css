@@ -638,3 +638,14 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Spielerbereich: Attribute, Athletics, Statistik */
 .subtabs-3 { grid-template-columns: repeat(3, 1fr); }
 .subtabs-3 .subtab { font-size: 13px; padding-left: 4px; padding-right: 4px; }
+
+/* Hype-Flamme: sanftes Leuchten. Stufe 0 (Aus) bleibt ohne Animation. */
+.hype-icon.hype-1, .hype-icon.hype-2, .hype-icon.hype-3 { animation: hypeGlow 2.6s ease-in-out infinite; }
+.hype-icon.hype-1 { --glow: 214, 69, 106; --glow-size: 4px; }
+.hype-icon.hype-2 { --glow: 47, 123, 255; --glow-size: 6px; }
+.hype-icon.hype-3 { --glow: 155, 48, 255; --glow-size: 8px; animation-duration: 2s; }
+@keyframes hypeGlow {
+  0%, 100% { filter: drop-shadow(0 0 var(--glow-size) rgba(var(--glow), 0.45)); }
+  50% { filter: drop-shadow(0 0 calc(var(--glow-size) * 1.8) rgba(var(--glow), 0.9)); }
+}
+@media (prefers-reduced-motion: reduce) { .hype-icon { animation: none !important; } }
