@@ -448,15 +448,9 @@
     Term.print('ProClubs Internationale FootSim Association');
     Term.print('Testphase: E-Mail-Bestätigung entfällt.', 'dim');
     Term.print('');
+    // Startmenü: nur Registrieren und Anmelden. Admin-Funktionen sind hier nicht sichtbar.
     const labels = ['Registrieren', 'Anmelden'];
     const actions = [registerFlow, () => loginFlow(false)];
-    if (state.isAdmin) {
-      labels.push('Demo-Konto', 'Demo zurücksetzen', 'XP vergeben', 'Spieler-XP', 'Bosssieg', 'Admin abmelden');
-      actions.push(demoLogin, adminResetDemo, adminGrantXp, adminGrantPlayerXp, adminBossWin, adminLogout);
-    } else if (state.adminKeyConfigured) {
-      labels.push('Admin');
-      actions.push(adminLogin);
-    }
     const choice = await Term.choose(labels);
     return actions[choice]();
   }
